@@ -1,6 +1,9 @@
 ---
 name: frontend-ui-engineering
 description: Builds production-quality, accessible, responsive user-facing UIs. Use when building or modifying interfaces and pages, creating components, implementing layouts, meeting WCAG accessibility requirements, managing state, or when the output needs to look and feel production-quality rather than AI-generated.
+source: upstream
+upstream-path: skills/frontend-ui-engineering/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Frontend UI Engineering

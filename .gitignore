@@ -5,3 +5,4 @@ node_modules/
 .dsh-install/
 npm-cache/
 pnpm-lock.yaml
+upstream-cache/

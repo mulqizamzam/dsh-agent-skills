@@ -1,6 +1,9 @@
 ---
 name: constraint-driven-development
 description: Sets a project-wide quality bar as a written contract and watches diffs for regressions. Use when establishing standards, when tests are being silenced, when an agent keeps skipping checks to get to green, or when you need enforced thresholds for coverage or performance.
+source: upstream
+upstream-path: skills/constraint-driven-development/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Constraint-Driven Development

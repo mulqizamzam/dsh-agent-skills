@@ -1,6 +1,9 @@
 ---
 name: context-engineering
 description: Optimizes agent context setup. Use when starting a new session, when agent output quality degrades, when switching between tasks, or when you need to configure rules files and context for a project.
+source: upstream
+upstream-path: skills/context-engineering/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Context Engineering

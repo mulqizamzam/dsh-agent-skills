@@ -1,6 +1,9 @@
 ---
 name: deprecation-and-migration
 description: Manages deprecation and migration. Use when removing old systems, APIs, or features. Use when migrating users from one implementation to another. Use when migrating a database schema in production, such as renaming or dropping a column without downtime (expand/contract). Use when deciding whether to maintain or sunset existing code.
+source: upstream
+upstream-path: skills/deprecation-and-migration/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Deprecation and Migration

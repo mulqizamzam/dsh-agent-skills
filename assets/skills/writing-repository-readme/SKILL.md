@@ -1,6 +1,7 @@
 ---
 name: writing-repository-readme
 description: Writes or rewrites a repository README from evidence found in the actual files. Use when the owner asks to create a README, write documentation for a repo, make onboarding docs for newcomers, document setup steps for a project, or when an existing README has drifted from the code and must be regenerated from real commands and config.
+source: original
 ---
 
 # Writing a Repository README

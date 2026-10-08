@@ -1,6 +1,9 @@
 ---
 name: using-agent-skills
 description: Discovers and invokes agent skills. Use when starting a session, or when you need to decide which skill or workflow applies to the piece of work at hand. This is the meta-skill that governs how all other skills are discovered and invoked.
+source: upstream
+upstream-path: skills/using-agent-skills/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Using Agent Skills

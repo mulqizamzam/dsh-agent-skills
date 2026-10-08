@@ -1,6 +1,9 @@
 ---
 name: documentation-and-adrs
 description: Records decisions and documentation. Use when you need to document an architecture decision (ADR) or the reasoning behind a design choice, when changing public APIs, shipping features, or when you need to record context that future engineers and agents will need to understand the codebase.
+source: upstream
+upstream-path: skills/documentation-and-adrs/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Documentation and ADRs

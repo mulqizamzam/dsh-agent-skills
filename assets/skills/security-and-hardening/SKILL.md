@@ -1,6 +1,9 @@
 ---
 name: security-and-hardening
 description: Hardens code against vulnerabilities through threat modeling, boundary classification, and OWASP-aligned controls. Use when auditing input handlers, handling user data or authentication, checking a login flow, auditing dependencies, or when privacy compliance is involved.
+source: upstream
+upstream-path: skills/security-and-hardening/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Security and Hardening

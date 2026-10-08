@@ -1,6 +1,9 @@
 ---
 name: spec-driven-development
 description: Creates a structured specification before coding — covering objectives, commands, structure, style, testing strategy, boundaries, and success criteria. Use when starting a new project or feature with ambiguous requirements, when requirements span several independently testable capabilities, or when a spec prevents rework.
+source: upstream
+upstream-path: skills/spec-driven-development/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Spec-Driven Development

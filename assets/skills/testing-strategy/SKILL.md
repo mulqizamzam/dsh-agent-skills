@@ -1,6 +1,7 @@
 ---
 name: testing-strategy
 description: Analyzes a repository end to end and decides which tests should exist, what already covers the code, and what to build first. Use when the owner asks what testing a repo needs, requests a test-strategy or coverage-gap analysis, asks to audit existing tests (redundant/flaky/missing), or wants a prioritized P0/P1/P2 test plan before any test code is written.
+source: original
 ---
 
 # Testing Strategy

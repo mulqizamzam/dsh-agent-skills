@@ -1,6 +1,9 @@
 ---
 name: interview-me
 description: Extracts what the user actually wants through one-question-at-a-time elicitation until ~95% confidence. Use when a request is underspecified ("build X" without why), when explicitly invoked ("interview me", "grill me"), or when you catch yourself silently filling in ambiguous requirements.
+source: upstream
+upstream-path: skills/interview-me/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Interview Me

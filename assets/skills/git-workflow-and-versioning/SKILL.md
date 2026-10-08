@@ -1,6 +1,9 @@
 ---
 name: git-workflow-and-versioning
 description: 'Structures git practices: branching, committing, worktrees, change summaries, and release versioning. Use when making any code change, committing, branching, resolving conflicts, opening or reviewing a PR, or when you need semantic version bumps and changelog entries.'
+source: upstream
+upstream-path: skills/git-workflow-and-versioning/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Git Workflow and Versioning

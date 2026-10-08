@@ -1,6 +1,9 @@
 ---
 name: doubt-driven-development
 description: Subjects every non-trivial decision to fresh-context adversarial review before it stands. Use when correctness matters more than speed, in unfamiliar code, on high-stakes work (production auth, security logic, irreversible migrations), or when a confident output would be cheaper to verify now than debug later.
+source: upstream
+upstream-path: skills/doubt-driven-development/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Doubt-Driven Development

@@ -1,6 +1,9 @@
 ---
 name: test-driven-development
 description: Drives development with tests using the red-green-refactor loop. Use when implementing any logic, fixing any bug, or changing any behavior. Use when you need to prove that code works, when a bug report arrives, or when you're about to modify existing functionality.
+source: upstream
+upstream-path: skills/test-driven-development/SKILL.md
+upstream-sha: 1401c8b8030e023baeebb31781a6653fe8e93026
 ---
 
 # Test-Driven Development
