@@ -246,6 +246,9 @@ cd /path/to/your/dsh-home/profiles/web
 pnpm add link:/path/to/dsh-agent-skills
 ```
 
+> Moving the plugin *after* this step? One path assumes the checkout stays where it is.
+> See **Limitations, item 1** (`## Limitations (be aware)` below) before relocating it.
+
 ### 4. Restart the host
 
 The host reads the new bundle at boot. Restarting is a deliberate operator action
@@ -357,8 +360,20 @@ The whole plugin is MIT licensed (`LICENSE`).
 
 Honest about the edges, so nobody is surprised later:
 
-1. **The skill folder path is absolute** in `cordis.patch.yml`. If you move the
-   checkout to a new location, edit that one path. Everything else is portable.
+1. **The skill folder path is absolute, and it cannot be made relative.** The host
+   resolves `customSkillDirs` with plain `path.resolve()` anchored at its own
+   working directory, not the plugin directory
+   (`packages/skill/skill-filesystem/src/index.ts:165`, with the schema typed
+   `z.array(z.string())` at `:81`), and no path substitution of any kind happens
+   when `cordis.patch.yml` is parsed (`packages/boot/app-boot/src/index.ts:320-345`
+   — it is a straight `yaml.load`). A relative `assets/skills` therefore resolves
+   against wherever the host process was started, which is not the plugin
+   checkout. **Consequence:** relocating this checkout requires hand-editing one
+   line: the `customSkillDirs` entry in `cordis.patch.yml`, the only absolute
+   path in that file. There is no supported plugin-relative form, and no
+   installer script can do it for you. Everything else in the plugin is
+   portable.
+
 2. **A gate that claims the loader rejects a bad file must first prove it can
    reject one.** `skill-load.test.mjs` carries a mutation probe: it feeds the
    real host provider a file with no frontmatter, a name that fails the
