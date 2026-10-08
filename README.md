@@ -465,6 +465,33 @@ Read which step failed:
 | `package.json` dependency/bundles FAIL | Step 3 did not write to the right profile. Confirm `$DSH_HOME/profiles/web/package.json` exists. |
 | `verify-catalog-live` FAIL | A `SKILL.md` is malformed. Run `npm test` to see which one. |
 
+### Exit codes
+
+The `verify-live.sh` script now returns distinct exit codes to identify the failure cause:
+
+| Exit code | Meaning |
+|-----------|---------|
+| **0** | Everything registered (all checks passed) |
+| **10** | DSH web GUI unreachable (host down) |
+| **11** | Plugin symlink missing (install step 3 not run) |
+| **12** | Plugin module failed to load (step 2 symlinks broken) |
+| **13** | Profile `package.json` missing `dependency` or `bundles` entry (step 3 wrong profile) |
+| **14** | Catalog count mismatch / malformed `SKILL.md` |
+
+**Precedence rule:** when multiple failures occur simultaneously, the lowest exit code (numerically smallest) is reported. I.e., exit code 10 takes precedence over 11, 12, 13, 14; and 11 takes precedence over 12, 13, 14; etc. This ensures a deterministic single exit code even if more than one check fails.
+
+A step skipped because the profile is absent on this machine does **not** produce a failure code — those steps are simply reported as `PASS` and marked as skipped.
+
+| Symptom | Likely exit code |
+|---------|-----------------|
+| GUI does not respond at `http://127.0.0.1:13080` | 10 |
+| `node_modules/@deepseek-ai/` has no `dsh-agent-skills` symlink | 11 |
+| Plugin module cannot be imported from the symlink | 12 |
+| `$DSH_HOME/profiles/web/package.json` has no `dependencies.dsh-agent-skills` or `dsh.profile.bundles` does not include `dsh-agent-skills` | 13 |
+| `verify-catalog-live.mjs` reports name mismatches or count mismatch | 14 |
+
+If the web profile is absent (fresh clone / CI), steps 1–4 are skipped and the script exits 0 if steps 5–6 also pass, with a note that those checks require a host profile.
+
 ### `npm test` fails
 
 The most common cause is a malformed `SKILL.md`. The structural test uses the

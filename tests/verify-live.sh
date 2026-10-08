@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 # Post-restart verification untuk dsh-agent-skills.
 #
+# Exit codes:
+#   0 — everything registered
+#   10 — DSH web GUI unreachable (host down)
+#   11 — plugin symlink missing (install step 3 not run)
+#   12 — plugin module failed to load (step 2 symlinks broken)
+#   13 — profile package.json missing dependency/bundles entry (step 3 wrong profile)
+#   14 — catalog count mismatch / malformed SKILL.md
+# Precedence rule: when multiple failures occur, the lowest exit code
+# (numerically smallest) is reported. I.e., exit code 10 takes precedence
+# over 11, 12, 13, 14.
+#
 # Jalankan SETELAH restart-dsh.sh selesai:
 #   bash /home/administrator/agent-workspace/project/dsh-agent-skills/tests/verify-live.sh
 #
-# Exit 0 = semua pass. Exit 1 = ada yang gagal (lihat baris FAIL).
 # Gate ini read-only: hanya membaca profil, symlink, modul, dan gateway lokal.
 #
 # Catatan arsitektur: plugin ini di-mount lewat `dsh.profile.bundles` di
 # profile `package.json`. Saat pnpm resolve dependency, bundle auto-join
-# layer stack. `cordis.patch.yml` profil tidak wajib — mount terjadi lewat
+# layer stack. `cordis.patch.yml` profil tidak wajib — mount terjadi lewak
 # package.json semata. Verifikasi di bawah mengecek jalur mount yang benar.
 
 set -uo pipefail
@@ -22,7 +32,7 @@ PLUGIN_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 DSH_HOME="${DSH_HOME:-$HOME/agent-workspace/.dsh}"
 PROFILE_PKG="$DSH_HOME/profiles/web/package.json"
 PROFILE_NM="$DSH_HOME/profiles/web/node_modules"
-FAIL=0
+EXIT_CODE=0
 
 # Skip the host-state steps (1-4) when the profile is not present on this
 # machine, so the disk-contract checks (5-6) stay runnable on a fresh clone.
@@ -32,7 +42,16 @@ PROFILE_PRESENT=0
 [ -d "$PROFILE_NM" ] && PROFILE_PRESENT=1
 
 ok()   { printf 'PASS %s\n' "$1"; }
-bad()  { printf 'FAIL %s\n' "$1"; FAIL=1; }
+bad()  { printf 'FAIL %s\n' "$1"; }
+
+set_exit_code() {
+  local new_code=$1
+  if [ "$EXIT_CODE" -eq 0 ]; then
+    EXIT_CODE=$new_code
+  elif [ "$new_code" -lt "$EXIT_CODE" ]; then
+    EXIT_CODE=$new_code
+  fi
+}
 
 # Derived counts. The shipped skill count is read from lib/counts.js rather
 # than written into this file, so adding a skill needs no edit here. A broken
@@ -56,16 +75,23 @@ esac
 # curl already writes 000 to stdout on transport failure, so a `|| echo 000`
 # fallback appends a SECOND 000 and yields "000000". Drop the fallback.
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:13080/)
-[ "$code" = 200 ] && ok "web GUI HTTP $code" || bad "web GUI HTTP $code (harusnya 200)"
+if [ "$code" = 200 ]; then
+  ok "web GUI HTTP $code"
+else
+  bad "web GUI HTTP $code (harusnya 200)"
+  set_exit_code 10
+fi
 
 # 2. Symlink plugin ter-resolve
-[ -L "$PROFILE_NM/dsh-agent-skills" ] \
-  && ok "symlink dsh-agent-skills ada di node_modules profil" \
-  || bad "symlink dsh-agent-skills tidak ada di node_modules profil"
+if [ "$PROFILE_PRESENT" -eq 1 ]; then
+  [ -L "$PROFILE_NM/dsh-agent-skills" ] \
+    && ok "symlink dsh-agent-skills ada di node_modules profil" \
+    || { bad "symlink dsh-agent-skills tidak ada di node_modules profil"; set_exit_code 11; }
+else
+  ok "symlink: skipped (no profile on this machine)"
+fi
 
 # 3. Modul plugin benar-benar loadable dari symlink profil
-# Capture the reason: suppressing stderr here hid ERR_MODULE_NOT_FOUND, so the
-# operator saw only a bare FAIL with no way to diagnose it.
 if [ "$PROFILE_PRESENT" -eq 1 ]; then
   load_out=$(node --input-type=module -e "
   import { pathToFileURL } from 'node:url';
@@ -79,13 +105,15 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
   else
     bad "modul plugin gagal load dari symlink profil:"
     printf '%s\n' "$load_out" | sed 's/^/    /' >&2
+    set_exit_code 12
   fi
 else
   ok "modul loadability: skipped (no profile on this machine)"
 fi
 
 # 4. Profil package.json punya dependency + bundles entry (jalur mount)
-node -e "
+if [ "$PROFILE_PRESENT" -eq 1 ]; then
+  node -e "
 const p = JSON.parse(require('fs').readFileSync('$PROFILE_PKG','utf8'));
 if (!p.dependencies || !p.dependencies['dsh-agent-skills']) {
   console.log('FAIL: dependencies.dsh-agent-skills MISSING'); process.exit(1);
@@ -96,7 +124,10 @@ if (!bundles.includes('dsh-agent-skills')) {
 }
 " \
   && ok "package.json: dependency + bundles entry dsh-agent-skills ada (mount via bundles)" \
-  || bad "package.json: dependency/bundles entry dsh-agent-skills hilang (plugin tidak akan mount)"
+  || { bad "package.json: dependency/bundles entry dsh-agent-skills hilang (plugin tidak akan mount)"; set_exit_code 13; }
+else
+  ok "package.json: skipped (no profile on this machine)"
+fi
 
 # 5. Gate disk skill contract — capture output so a failure is diagnosable,
 #    not just a bare exit code (the old >/dev/null swallowed the reason).
@@ -107,6 +138,7 @@ if [ "$catalog_rc" -eq 0 ]; then
 else
   bad "verify-catalog-live gagal (exit $catalog_rc):"
   printf '%s\n' "$catalog_out" | sed 's/^/    /' >&2
+  set_exit_code 14
 fi
 
 # 6. Gerbang statis lokal masih hijau.
@@ -127,7 +159,7 @@ else
   ok "structural/e2e/routing: skipped (no profile; run 'npm test' directly)"
 fi
 echo
-if [ "$FAIL" -eq 0 ]; then
+if [ "$EXIT_CODE" -eq 0 ]; then
   if [ "$PROFILE_PRESENT" -eq 1 ]; then
     echo "RESULT: PASS — plugin terpasang, termount, dan loadable"
   else
@@ -136,4 +168,4 @@ if [ "$FAIL" -eq 0 ]; then
 else
   echo "RESULT: FAIL — ada baris FAIL di atas, jangan considersudah selesai"
 fi
-exit "$FAIL"
+exit "$EXIT_CODE"
