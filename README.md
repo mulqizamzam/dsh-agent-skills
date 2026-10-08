@@ -1,7 +1,7 @@
 # dsh-agent-skills
 
 A plug-and-drop set of **engineering lifecyle skills** for the DeepSeek Harness (DSH).
-It gives your coding agent 27 ready-made "how to do X" guides plus 9 quick slash
+It gives your coding agent every ready-made "how to do X" guide plus 9 quick slash
 commands, and it drops straight into the host's native skill system with no custom
 code to maintain.
 
@@ -18,13 +18,13 @@ produces inconsistent work.
 
 **A "skill"** is a written guide the agent can load on demand — think of it as a
 checklist or a mini-playbook ("here is how a strong engineer does a code review").
-This plugin ships **27 of those guides**, covering the full life of software work:
+This plugin ships **every one of those guides**, covering the full life of software work:
 planning, building, testing, reviewing, and shipping.
 
 **A "command"** is a short shortcut you type in chat to pull in one guide.
 Instead of asking the agent in vague words, you type `/review` and the agent loads
 the full code-review guide and works from it. There are **9 shortcuts**, each one
-just a door into one of the 27 guides.
+just a door into one of the guides.
 
 That is the whole idea. No background daemons, no setup after install: the host
 loads the skill files and registers the commands at boot, and you use them.
@@ -37,7 +37,7 @@ loads the skill files and registers the commands at boot, and you use them.
 dsh-agent-skills/
 ├── lib/index.js            ← the plugin: registers the 9 slash commands
 ├── assets/
-│   ├── skills/            ← 27 guides, one folder each (SKILL.md + optional notes)
+│   ├── skills/            ← one folder per guide (SKILL.md + optional notes)
 │   └── references/        ← 7 shared checklists the guides point to
 ├── cordis.patch.yml        ← tells the host where to find the skills + commands
 ├── package.json           ← plugin metadata (name, version, dependencies)
@@ -46,7 +46,7 @@ dsh-agent-skills/
 └── LICENSE                ← MIT
 ```
 
-- **27 skills** — the guides themselves (listed in full below).
+- **Every skill** — the guides themselves (listed in full below).
 - **9 commands** — shortcuts that load one guide each (`/spec`, `/plan`, `/build`, …).
 - **7 shared references** — checklists that several guides reuse
   (testing patterns, a security checklist, performance tips, etc.).
@@ -151,7 +151,7 @@ You do not need this to use the plugin, but it is short and reassuring.
 Two lines are added to the host's configuration (`cordis.patch.yml`):
 
 1. **A skill scanner** pointed at `assets/skills/`. The host reads each
-   `SKILL.md` and puts the 27 guides into the catalog the agent can reach.
+   `SKILL.md` and puts every guide into the catalog the agent can reach.
 2. **This plugin's `lib/index.js`**, which registers the 9 commands.
 
 When you type `/review`, the command does exactly three small things and nothing
@@ -274,7 +274,7 @@ specific thing that did not register.
 
 > That is it. On the next chat, `/spec`, `/plan`, `/build`, `/test`,
 > `/constraints`, `/review`, `/webperf`, `/code-simplify`, and `/ship` are available,
-> and the agent can reach all 27 skills on its own.
+> and the agent can reach every skill on its own.
 
 ---
 
@@ -308,15 +308,15 @@ Two levels, cheap to run:
 ```bash
 # 1. Static checks — no host needed. Four gates in sequence:
 npm test
-#   structural.test.mjs     27 SKILL.md parse cleanly, names are unique, refs resolve
-#   skill-load.test.mjs     27 skills survive the real host FileSystemSkillProvider,
+#   structural.test.mjs     each SKILL.md parses cleanly, names are unique, refs resolve
+#   skill-load.test.mjs     each skill survives the real host FileSystemSkillProvider,
 #                           plus a mutation probe proving broken files get dropped
 #   e2e-handler.test.mjs    4 cases: happy path, missing skill, non-invocable, empty input
 #   command-routing.test.mjs 9 cases: each command resolves to the right skill
 
 # 2. Live check — after a restart, against the running host:
 bash tests/verify-live.sh           # exit 0 = all registered
-node tests/verify-catalog-live.mjs  # 27 skills in the live catalog, 9 commands present
+node tests/verify-catalog-live.mjs  # every skill in the live catalog, 9 commands present
 ```
 
 The static checks use the host's **exact** YAML parser rather than a home-grown
@@ -341,7 +341,7 @@ licensed, © 2025 Addy Osmani. Full credit is in `NOTICE.md`. In short:
 - 25 skill bodies shipped essentially verbatim.
 - The 26th guide, `testing-strategy`, is original to this plugin and is not
   part of the upstream port.
-- The 27th guide, `writing-repository-readme`, is also original to this plugin.
+`writing-repository-readme` is also original to this plugin.
 - A few `description` lines were trimmed to fit the host's catalog size limit,
   and one was quoted to fix a YAML hazard that would otherwise have dropped that
   skill silently.
@@ -509,7 +509,7 @@ installing, a restart is also needed.
 
 ## In one line
 
-`dsh-agent-skills` gives your DSH agent 27 engineering guides and 9 one-word
+`dsh-agent-skills` gives your DSH agent every engineering guide and 9 one-word
 shortcuts for the parts of software work you do over and over — install it once,
 restart once, and use the `/` commands whenever you want a strong engineer's
 playbook, on demand.

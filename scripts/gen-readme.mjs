@@ -177,6 +177,31 @@ function regionOf(text, region) {
   return match === null ? null : match[0]
 }
 
+/**
+ * Fail if the skill count is written by hand anywhere outside a marker region.
+ *
+ * The two generated regions are the only places a count belongs. A bare number in
+ * prose looks right until a skill is added, at which point it is silently wrong
+ * and no other gate notices: structural.test.mjs derives its own expectation,
+ * readme:check compares only the marked regions, and diff-upstream reads bodies.
+ * This check is what makes that drift loud.
+ *
+ * Only `--check` enforces it. The rewrite mode cannot fix hand-written prose, so
+ * reporting there would block an operator who never introduced the problem.
+ */
+function findBareCount(text, count) {
+  const withoutRegions = text
+    .replace(/<!-- BEGIN:SKILL-COUNT -->[\s\S]*?<!-- END:SKILL-COUNT -->/g, '')
+    .replace(/<!-- BEGIN:SKILL-TABLE -->[\s\S]*?<!-- END:SKILL-TABLE -->/g, '')
+  const pattern = new RegExp(`\\b${count}\\b`)
+  // Report the offending line's content, not its number: stripping the regions
+  // above renumbers the file, so a line number computed here would be wrong.
+  for (const line of withoutRegions.split('\n')) {
+    if (pattern.test(line)) return line.trim()
+  }
+  return null
+}
+
 const check = process.argv.includes('--check')
 
 // Everything below throws on a broken catalog. Caught here so the gate prints
@@ -189,6 +214,19 @@ try {
   const expectedCount = countSkills()
   if (skills.size !== expectedCount) {
     throw new Error(`gen-readme: read ${skills.size} skills but countSkills() reports ${expectedCount}`)
+  }
+
+  // Checked before the staleness comparison so a hand-written count is reported
+  // as itself, not buried under "count/table does not match".
+  if (check) {
+    const bare = findBareCount(current, expectedCount)
+    if (bare !== null) {
+      console.error(`FAIL README.md writes the skill count (${expectedCount}) outside a marker region:`)
+      console.error(`     ${bare}`)
+      console.error('     the count belongs only inside BEGIN/END:SKILL-COUNT or BEGIN/END:SKILL-TABLE;')
+      console.error('     reword the sentence, or let the region carry the number')
+      process.exit(1)
+    }
   }
 
   const expected = replaceRegion(
