@@ -193,7 +193,10 @@ function findBareCount(text, count) {
   const withoutRegions = text
     .replace(/<!-- BEGIN:SKILL-COUNT -->[\s\S]*?<!-- END:SKILL-COUNT -->/g, '')
     .replace(/<!-- BEGIN:SKILL-TABLE -->[\s\S]*?<!-- END:SKILL-TABLE -->/g, '')
-  const pattern = new RegExp(`\\b${count}\\b`)
+  // Match the count as a standalone number OR as an ordinal ("the 27th skill").
+  // \b alone misses "27th" because "t" is a word character, so it would not
+  // stop at the boundary — that suffix needs explicit handling.
+  const pattern = new RegExp(`\\b${count}(?:\\s*(?:st|nd|rd|th)\\b|\\b)`)
   // Report the offending line's content, not its number: stripping the regions
   // above renumbers the file, so a line number computed here would be wrong.
   for (const line of withoutRegions.split('\n')) {
