@@ -70,3 +70,16 @@ a non-plugin story:
 
 **Recommendation:** keep the plugin for the 9 commands, and treat "copy to
 `$DSH_HOME/skills/`" as a documented fallback, not the primary story.
+
+## Decision
+
+**Chosen: (b) B2 — keep the plugin envelope intact.** `assets/skills/` stays inside
+the plugin and is loaded through `cordis.patch.yml`'s `customSkillDirs` row (root
+300), and `lib/index.js` keeps its 9 slash commands. The reason is the isolation
+property already listed in the table above: `providerName: agent-skills` plus
+`includeDefaultRoots: false` gives these 27 skills their own provider namespace, so
+they do not compete for names with the skills already living under
+`$DSH_HOME/skills/` (root 400) and the two packaged fallback install paths are
+neither the primary story nor needed. The analysis in this document stands as the
+reasoning record; Tasks 1-10 proceed exactly as originally specified, including
+Task 8's exit codes 11/12/13 and Task 10's `cordis.patch.yml` path resolution.
