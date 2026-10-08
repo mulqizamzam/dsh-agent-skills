@@ -1,0 +1,7 @@
+node_modules/
+*.bak*
+*.tmp
+*.hidden
+.dsh-install/
+npm-cache/
+pnpm-lock.yaml

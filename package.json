@@ -1,0 +1,51 @@
+{
+  "name": "dsh-agent-skills",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH-native port of addyosmani/agent-skills: 25 lifecycle engineering skills plus 2 original (testing-strategy, writing-repository-readme), 9 thin slash commands, and shared references, mounted through the host's skill-filesystem provider and command registry.",
+  "license": "MIT",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "agent-skills",
+    "skills",
+    "commands"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib/*": "./lib/*.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE",
+    "NOTICE.md"
+  ],
+  "scripts": {
+    "test": "node tests/structural.test.mjs && node tests/skill-load.test.mjs && node tests/e2e-handler.test.mjs && node tests/command-routing.test.mjs"
+  },
+  "license-note": "Skill bodies are a behavioral reimplementation of addyosmani/agent-skills (MIT); see NOTICE.md.",
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-skill": "*",
+    "@deepseek-ai/dsh-llm": "*",
+    "@deepseek-ai/dsh-agent": "*"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "cordis.patch.yml"
+    },
+    "engines": {
+      "dsh": ">=0.1.1-rc.1"
+    }
+  }
+}

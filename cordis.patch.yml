@@ -1,0 +1,31 @@
+# dsh-agent-skills — plugin manifest.
+#
+# Two insert rows:
+#   1. An isolated `dsh-skill-filesystem` instance that scans ONLY this
+#      plugin's `assets/skills/` directory (includeDefaultRoots=false keeps
+#      the provider from seeing any root outside its explicit list).
+#      Each skill subdirectory is loaded as <dir>/SKILL.md (directory-bundle
+#      form); a skill-local references/ subdir is resolved through the
+#      resourceBase directory hint.
+#
+#   2. The plugin's own command module (`lib/index.js`), which registers the
+#      nine thin slash commands. Each command looks up its canonical skill
+#      by name and steers the agent with the rendered skill content plus the
+#      user's raw input.
+#
+# Both rows sit in the profile composition via `dsh.profile.bundles`.
+# This plugin is local-only: customSkillDirs is absolute by design, matching
+# the established pattern in dsh-superpowers-plugin and anti-ai-ui-builder.
+
+- insert:
+    - id: agent-skills-skill-filesystem
+      name: '@deepseek-ai/dsh-skill-filesystem'
+      config:
+        providerName: agent-skills
+        includeDefaultRoots: false
+        customSkillDirs:
+          - /home/administrator/agent-workspace/project/dsh-agent-skills/assets/skills
+
+    - id: agent-skills-commands
+      name: dsh-agent-skills
+      config: {}
