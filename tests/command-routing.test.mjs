@@ -13,6 +13,7 @@
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
 
 const req = createRequire(import.meta.url)
 const { renderSkillContent, isUserInvocable } = req('@deepseek-ai/dsh-skill')
@@ -128,6 +129,86 @@ for (const [commandName, skillName] of Object.entries(COMMAND_SKILL_MAP)) {
 
   console.log(`PASS ${commandName} -> ${skillName} (steer source=${steerMsg.source.kind}, name=${steerMsg.source.name})`)
 }
+
+// --- Command-map exhaustiveness validation ---
+
+// Fail-closed: missing or unparseable autonomous-only.json must FAIL the test
+let autonomousMap
+try {
+  const autoSrc = fs.readFileSync(
+    path.join(PLUGIN_DIR, 'assets', 'skills', 'autonomous-only.json'),
+    'utf8'
+  )
+  autonomousMap = JSON.parse(autoSrc)
+} catch {
+  console.error('FAIL autonomous-only.json: missing or unparseable — structural gate closed')
+  failures++
+}
+
+// Build helper sets
+const commandedSkills = new Set(Object.values(COMMAND_SKILL_MAP))
+const allSkillDirs = new Set()
+const skillDirEntries = fs.readdirSync(path.join(PLUGIN_DIR, 'assets', 'skills'), {
+  withFileTypes: true,
+})
+for (const entry of skillDirEntries) {
+  if (entry.isDirectory()) {
+    const skillPath = path.join(PLUGIN_DIR, 'assets', 'skills', entry.name)
+    if (fs.existsSync(path.join(skillPath, 'SKILL.md'))) {
+      allSkillDirs.add(entry.name)
+    }
+  }
+}
+
+// 1. Every command target in COMMAND_SKILL_MAP exists in assets/skills/
+for (const [, canonical] of Object.entries(COMMAND_SKILL_MAP)) {
+  if (allSkillDirs.has(canonical)) {
+    console.log(`PASS command target "${canonical}" exists in assets/skills/`)
+  } else {
+    console.error(`FAIL command target "${canonical}" not found in assets/skills/`)
+    failures++
+  }
+}
+
+// 2. Every skill in assets/skills/ is EITHER a COMMAND_SKILL_MAP value
+//    OR listed in autonomous-only.json (but NOT both)
+// 3. NO skill appears in BOTH autonomous-only.json AND COMMAND_SKILL_MAP
+// 4. Every entry in autonomous-only.json exists in assets/skills/
+if (autonomousMap && Array.isArray(autonomousMap)) {
+  const autonomousSet = new Set(autonomousMap)
+
+  // Check every skill directory: must be in exactly one of the two sets
+  for (const skillName of allSkillDirs) {
+    const inCommands = commandedSkills.has(skillName)
+    const inAutonomous = autonomousSet.has(skillName)
+
+    if (inCommands && inAutonomous) {
+      console.error(`FAIL skill "${skillName}" appears in BOTH COMMAND_SKILL_MAP and autonomous-only.json`)
+      failures++
+    } else if (!inCommands && !inAutonomous) {
+      console.error(`FAIL skill "${skillName}" is NOT in COMMAND_SKILL_MAP and NOT in autonomous-only.json`)
+      failures++
+    } else if (inCommands && !inAutonomous) {
+      console.log(`PASS skill "${skillName}" is a command target`)
+    } else if (!inCommands && inAutonomous) {
+      console.log(`PASS skill "${skillName}" is autonomous-only`)
+    }
+  }
+
+  // Every entry in autonomous-only.json exists in assets/skills/
+  for (const skill of autonomousMap) {
+    if (allSkillDirs.has(skill)) {
+      console.log(`PASS autonomous-only entry "${skill}" exists in assets/skills/`)
+    } else {
+      console.error(`FAIL autonomous-only entry "${skill}" not found in assets/skills/`)
+      failures++
+    }
+  }
+}
+
+// If autonomous-only.json is missing or unparseable, the above loops are
+// skipped (autonomousMap is falsy), and the "command targets exist" check
+// (step 1) is the only validation that runs.
 
 // --- Host-side registration validation ---
 // Every gate used to be blind here: the host rejects an invalid command

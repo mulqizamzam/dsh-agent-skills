@@ -1,0 +1,20 @@
+[
+  "api-and-interface-design",
+  "browser-testing-with-devtools",
+  "ci-cd-and-automation",
+  "context-engineering",
+  "debugging-and-error-recovery",
+  "deprecation-and-migration",
+  "documentation-and-adrs",
+  "doubt-driven-development",
+  "frontend-ui-engineering",
+  "git-workflow-and-versioning",
+  "idea-refine",
+  "interview-me",
+  "observability-and-instrumentation",
+  "security-and-hardening",
+  "source-driven-development",
+  "testing-strategy",
+  "using-agent-skills",
+  "writing-repository-readme"
+]
