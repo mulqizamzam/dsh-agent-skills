@@ -28,7 +28,9 @@
     "NOTICE.md"
   ],
   "scripts": {
-    "test": "node tests/structural.test.mjs && node tests/skill-load.test.mjs && node tests/e2e-handler.test.mjs && node tests/command-routing.test.mjs"
+    "test": "node tests/structural.test.mjs && node tests/skill-load.test.mjs && node tests/e2e-handler.test.mjs && node tests/command-routing.test.mjs && node scripts/gen-readme.mjs --check",
+    "readme:gen": "node scripts/gen-readme.mjs",
+    "readme:check": "node scripts/gen-readme.mjs --check"
   },
   "license-note": "Skill bodies are a behavioral reimplementation of addyosmani/agent-skills (MIT); see NOTICE.md.",
   "engines": {

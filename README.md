@@ -78,65 +78,69 @@ full review guide and applies it to your request.
 
 ---
 
+<!-- BEGIN:SKILL-COUNT -->
 ## All 27 skills
+<!-- END:SKILL-COUNT -->
 
 These are the guides in `assets/skills/`. The 9 above are the ones with a shortcut;
 the rest the agent uses by judgment.
 
+<!-- BEGIN:SKILL-TABLE -->
 **Planning & thinking**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `spec-driven-development` | You start a feature with fuzzy requirements; pin down objectives, boundaries, and "done" first. |
-| `planning-and-task-breakdown` | A task feels too big to start; split it into ordered, doable steps. |
-| `idea-refine` | An idea is still vague; stress-test it and sharpen it before committing. |
-| `interview-me` | A request is underspecified ("build X" with no why); the agent asks one question at a time until it truly gets it. |
-| `doubt-driven-development` | High-stakes or unfamiliar work where a confident-looking answer would be cheaper to check now than to debug later. |
-| `context-engineering` | Output quality is slipping or you are switching tasks; tidy what the agent is working from. |
+| `spec-driven-development` | Creates a structured specification before coding — covering objectives, commands, structure, style, testing strategy, boundaries, and success criteria. Use when starting a new project or feature with ambiguous requirements, when requirements span several independently testable capabilities, or when a spec prevents rework. |
+| `planning-and-task-breakdown` | Breaks work into ordered tasks. Use when you have a spec or clear requirements and need to break work into implementable tasks. Use when a task feels too large to start, when you need to estimate scope, or when parallel work is possible. |
+| `idea-refine` | Refines raw ideas into sharp, actionable concepts through structured divergent and convergent thinking. Use when an idea is still vague, when you need to stress-test assumptions before committing to a plan, or when you want to expand options before converging on one. Triggers on "ideate", "refine this idea", or "stress-test my plan". |
+| `interview-me` | Extracts what the user actually wants through one-question-at-a-time elicitation until ~95% confidence. Use when a request is underspecified ("build X" without why), when explicitly invoked ("interview me", "grill me"), or when you catch yourself silently filling in ambiguous requirements. |
+| `doubt-driven-development` | Subjects every non-trivial decision to fresh-context adversarial review before it stands. Use when correctness matters more than speed, in unfamiliar code, on high-stakes work (production auth, security logic, irreversible migrations), or when a confident output would be cheaper to verify now than debug later. |
+| `context-engineering` | Optimizes agent context setup. Use when starting a new session, when agent output quality degrades, when switching between tasks, or when you need to configure rules files and context for a project. |
 
 **Building**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `incremental-implementation` | A change touches many files; deliver it in thin, verifiable slices. |
-| `test-driven-development` | Adding logic, fixing a bug, or changing behavior — prove it with tests. |
-| `api-and-interface-design` | Designing a public API or the boundary between two modules. |
-| `frontend-ui-engineering` | Building or fixing user-facing UI that should feel polished and accessible. |
-| `source-driven-development` | You want the answer grounded in the official docs, not in guesswork. |
+| `incremental-implementation` | Delivers changes incrementally in thin, verifiable slices. Use when implementing any feature or change that touches more than one file, or when picking up the next task from a plan. Use when rolling a change out behind a feature flag, when you're about to write a large amount of code at once, or when a task feels too big to land in one step. |
+| `test-driven-development` | Drives development with tests using the red-green-refactor loop. Use when implementing any logic, fixing any bug, or changing any behavior. Use when you need to prove that code works, when a bug report arrives, or when you're about to modify existing functionality. |
+| `api-and-interface-design` | Guides stable API and interface design. Use when designing APIs, module boundaries, or any public interface. Use when creating REST or GraphQL endpoints, defining type contracts between modules, or establishing boundaries between frontend and backend. |
+| `frontend-ui-engineering` | Builds production-quality, accessible, responsive user-facing UIs. Use when building or modifying interfaces and pages, creating components, implementing layouts, meeting WCAG accessibility requirements, managing state, or when the output needs to look and feel production-quality rather than AI-generated. |
+| `source-driven-development` | Grounds every implementation decision in official documentation. Use when you want to verify an approach against the official docs before implementing it, or when you want authoritative, source-cited code free from outdated patterns. Use when building with any framework or library where correctness matters. |
 
 **Quality**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `code-review-and-quality` | Before anything merges; review your own or someone else's changes. |
-| `code-simplification` | Code works but is harder to read than it needs to be. |
-| `constraint-driven-development` | Standards keep slipping; set a written quality bar and guard it. |
-| `testing-strategy` | You need to know what tests a repository should have, and which to write first (original to this pack). |
+| `code-review-and-quality` | Conducts multi-axis code review. Use before merging any change. Use when reviewing code written by yourself, another agent, or a human. Use when you need to assess code quality across multiple dimensions before it enters the main branch. Use when asked to review a diff or a pull request, even when the diff is pasted inline. |
+| `code-simplification` | Simplifies code for clarity. Use when refactoring code for clarity without changing behavior. Use when code works but is harder to read, maintain, or extend than it should be. Use when reviewing code that has accumulated unnecessary complexity. |
+| `constraint-driven-development` | Sets a project-wide quality bar as a written contract and watches diffs for regressions. Use when establishing standards, when tests are being silenced, when an agent keeps skipping checks to get to green, or when you need enforced thresholds for coverage or performance. |
+| `testing-strategy` | Analyzes a repository end to end and decides which tests should exist, what already covers the code, and what to build first. Use when the owner asks what testing a repo needs, requests a test-strategy or coverage-gap analysis, asks to audit existing tests (redundant/flaky/missing), or wants a prioritized P0/P1/P2 test plan before any test code is written. |
 
 **Version control**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `git-workflow-and-versioning` | Committing, branching, resolving conflicts, or bumping a release. |
+| `git-workflow-and-versioning` | Structures git practices: branching, committing, worktrees, change summaries, and release versioning. Use when making any code change, committing, branching, resolving conflicts, opening or reviewing a PR, or when you need semantic version bumps and changelog entries. |
 
 **Operating & shipping**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `ci-cd-and-automation` | Setting up or changing build/deploy pipelines and quality gates. |
-| `observability-and-instrumentation` | Making production behavior visible: logging, metrics, tracing, alerts. |
-| `performance-optimization` | Fixing slow pages, queries, or regressions (this is what `/webperf` loads). |
-| `shipping-and-launch` | The pre-launch checklist, rollout plan, and rollback (this is what `/ship` loads). |
-| `browser-testing-with-devtools` | Verifying something that runs in a real browser with live DOM/console data. |
+| `ci-cd-and-automation` | Automates CI/CD pipeline setup. Use when setting up or modifying build and deployment pipelines. Use when you need to automate quality gates, configure test runners in CI, or establish deployment strategies. |
+| `observability-and-instrumentation` | Instruments code so production behavior is visible and diagnosable. Use when adding logging, metrics, tracing, or alerting. Use when shipping any feature that runs in production and you need evidence it works. Use when production issues are reported but you can't tell what happened from the available data. |
+| `performance-optimization` | Optimizes application performance across frontend, backend, queries, and databases. Use when performance requirements exist, when you suspect performance regressions, when Core Web Vitals or load times need improvement, when N+1 query patterns need fixing, or when profiling reveals bottlenecks. |
+| `shipping-and-launch` | Prepares production launches. Use when preparing to deploy to production, or when asking what needs to be in place before shipping. Use when you need a pre-launch checklist, when setting up monitoring, when planning a staged rollout, or when you need a rollback strategy. |
+| `browser-testing-with-devtools` | Tests in real browsers via Chrome DevTools MCP. Use when building or debugging anything that runs in a browser. Use when you need to inspect the DOM, capture console errors, analyze network requests, profile performance, or verify visual output with real runtime data. Requires the chrome-devtools MCP server to be configured. |
 
 **Maintaining**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `deprecation-and-migration` | Removing an old system or migrating users/data without a painful cutover. |
-| `security-and-hardening` | Hardening against vulnerabilities: threat modeling, boundaries, OWASP-aligned controls. |
-| `debugging-and-error-recovery` | Something that worked yesterday is broken; find the root cause instead of guessing. |
+| `deprecation-and-migration` | Manages deprecation and migration. Use when removing old systems, APIs, or features. Use when migrating users from one implementation to another. Use when migrating a database schema in production, such as renaming or dropping a column without downtime (expand/contract). Use when deciding whether to maintain or sunset existing code. |
+| `security-and-hardening` | Hardens code against vulnerabilities through threat modeling, boundary classification, and OWASP-aligned controls. Use when auditing input handlers, handling user data or authentication, checking a login flow, auditing dependencies, or when privacy compliance is involved. |
+| `debugging-and-error-recovery` | Guides systematic root-cause debugging. Use when tests fail, builds break, something that worked yesterday broke, behavior doesn't match expectations, or you encounter any unexpected error. Use when you need to figure out what broke and why — a systematic approach to finding and fixing the root cause rather than guessing. |
 
 **Meta & documentation**
 | Skill | When the agent reaches for it |
 |-------|-------------------------------|
-| `using-agent-skills` | The "how do the other skills work" guide; it governs how the rest are discovered. |
-| `documentation-and-adrs` | Recording a decision and *why*, so future engineers (and agents) understand. |
-| `writing-repository-readme` | Writing or rewriting a README from what the files actually say, not from habit (original to this pack). |
+| `using-agent-skills` | Discovers and invokes agent skills. Use when starting a session, or when you need to decide which skill or workflow applies to the piece of work at hand. This is the meta-skill that governs how all other skills are discovered and invoked. |
+| `documentation-and-adrs` | Records decisions and documentation. Use when you need to document an architecture decision (ADR) or the reasoning behind a design choice, when changing public APIs, shipping features, or when you need to record context that future engineers and agents will need to understand the codebase. |
+| `writing-repository-readme` | Writes or rewrites a repository README from evidence found in the actual files. Use when the owner asks to create a README, write documentation for a repo, make onboarding docs for newcomers, document setup steps for a project, or when an existing README has drifted from the code and must be regenerated from real commands and config. |
+<!-- END:SKILL-TABLE -->
 
 ---
 
