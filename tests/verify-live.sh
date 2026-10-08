@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Post-restart verification untuk dsh-agent-skills.
 #
+# Subagent reports are advisory only — see docs/verification-policy.md: verify
+# every acceptance criterion against disk state and this script's exit code.
+#
 # Exit codes:
 #   0 — everything registered
 #   10 — DSH web GUI unreachable (host down)

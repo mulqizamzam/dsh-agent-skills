@@ -1,0 +1,1 @@
+Subagent completion reports are advisory, not authoritative. Every task's acceptance criteria must be verified against disk state (git diff, file existence, actual command output), not against the subagent's prose. A subagent that reports success with no corresponding change on disk is a known failure mode in this repo and must be checked for.
