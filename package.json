@@ -32,7 +32,8 @@
     "readme:gen": "node scripts/gen-readme.mjs",
     "readme:check": "node scripts/gen-readme.mjs --check",
     "skill:new": "node scripts/new-skill.mjs",
-    "diff:upstream": "node scripts/diff-upstream.mjs"
+    "diff:upstream": "node scripts/diff-upstream.mjs",
+    "doctor": "node scripts/doctor.mjs"
   },
   "license-note": "Skill bodies are a behavioral reimplementation of addyosmani/agent-skills (MIT); see NOTICE.md.",
   "engines": {
