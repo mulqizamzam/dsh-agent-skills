@@ -74,6 +74,15 @@ case "$SKILL_COUNT" in
     SKILL_COUNT='?' ;;
 esac
 
+# Total registered commands: the nine skill aliases plus the /flow workflow
+# command. Derived, so the count in the status lines below cannot drift.
+COMMAND_COUNT=$(derive_count countTotalCommands)
+case "$COMMAND_COUNT" in
+  ''|*[!0-9]*)
+    bad "lib/counts.js countTotalCommands() tidak menghasilkan angka: '${COMMAND_COUNT}'"
+    COMMAND_COUNT='?' ;;
+esac
+
 # 1. HTTP probe web GUI
 # curl already writes 000 to stdout on transport failure, so a `|| echo 000`
 # fallback appends a SECOND 000 and yields "000000". Drop the fallback.
@@ -157,7 +166,9 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
   ( cd "$PLUGIN_DIR" && node tests/e2e-handler.test.mjs >/dev/null 2>&1 ) \
     && ok "e2e handler gate exit 0" || bad "e2e handler gate gagal"
   ( cd "$PLUGIN_DIR" && node tests/command-routing.test.mjs >/dev/null 2>&1 ) \
-    && ok "command routing gate exit 0 (9/9)" || bad "command routing gate gagal"
+    && ok "command routing gate exit 0 (${COMMAND_COUNT}/${COMMAND_COUNT})" || bad "command routing gate gagal"
+  ( cd "$PLUGIN_DIR" && node tests/flow-command.test.mjs >/dev/null 2>&1 ) \
+    && ok "flow command gate exit 0" || bad "flow command gate gagal"
 else
   ok "structural/e2e/routing: skipped (no profile; run 'npm test' directly)"
 fi

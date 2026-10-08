@@ -18,9 +18,14 @@ fresh shallow clone of upstream at HEAD 1401c8b:
 
 ## What this plugin added
 
-- 2 original SKILL.md files, written for this plugin and NOT taken from upstream.
-  The count above stays at 25 for the ported bodies; the shipped catalog is 27
-  skills total.
+- 4 original SKILL.md files, written for this plugin and NOT taken from upstream:
+  `testing-strategy`, `writing-repository-readme`, `evidence-and-decision-tracking`,
+  and `engineering-handoff`. The count above stays at 25 for the ported bodies;
+  the shipped catalog is 29 skills total.
+- The whole workflow layer: `assets/workflows/*.json`,
+  `assets/skill-contracts.json`, `lib/flow*.js`, `lib/workflows.js`,
+  `lib/skill-contracts.js`, and the `/flow` command. Nothing in it is taken from
+  upstream.
 
 ## What was changed
 

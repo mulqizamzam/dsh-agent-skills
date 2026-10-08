@@ -90,6 +90,8 @@ const GROUPS = {
     'using-agent-skills',
     'documentation-and-adrs',
     'writing-repository-readme',
+    'evidence-and-decision-tracking',
+    'engineering-handoff',
   ],
 }
 

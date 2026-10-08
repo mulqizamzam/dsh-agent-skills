@@ -1,0 +1,59 @@
+{
+  "name": "bugfix",
+  "description": "Standard workflow for a defect: reproduce it, diagnose the root cause, write the failing test, fix it, and prove the fix holds.",
+  "match": {
+    "keywords": [
+      "fix",
+      "bugfix",
+      "bug",
+      "defect",
+      "repair",
+      "patch",
+      "hotfix",
+      "broken",
+      "broke",
+      "crash",
+      "crashing",
+      "regression",
+      "resolve",
+      "correct",
+      "remediate"
+    ],
+    "priority": 90
+  },
+  "stages": [
+    {
+      "skill": "debugging-and-error-recovery",
+      "required": true,
+      "purpose": "Reproduce the failure and diagnose the root cause instead of guessing at a fix."
+    },
+    {
+      "skill": "evidence-and-decision-tracking",
+      "required": false,
+      "purpose": "Record the reproduction, the diagnosis, and what was ruled out so the fix is defensible."
+    },
+    {
+      "skill": "test-driven-development",
+      "required": true,
+      "purpose": "Write the failing test that encodes the bug before writing the fix."
+    },
+    {
+      "skill": "incremental-implementation",
+      "required": true,
+      "purpose": "Land the smallest change that fixes the root cause and nothing else."
+    },
+    {
+      "skill": "code-review-and-quality",
+      "required": true,
+      "purpose": "Review the fix for side effects and for whether the guard against recurrence is real."
+    }
+  ],
+  "rules": [
+    "Complete each stage before treating it as complete.",
+    "Do not change code before the failure reproduces; an unreproduced bug cannot be verified as fixed.",
+    "After the fix lands, re-run the reproduction from the first stage and the existing suite; the bugfix baseline runs the test step twice on purpose.",
+    "Do not claim verification that did not happen."
+  ],
+  "on_optional_missing": "skip",
+  "completion": "The bug is fixed when the reproduction from the first stage passes, the written test passes, and the surrounding suite still passes."
+}

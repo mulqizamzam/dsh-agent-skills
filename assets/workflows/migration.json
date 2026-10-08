@@ -1,0 +1,57 @@
+{
+  "name": "migration",
+  "description": "Workflow for moving a system, API, or schema from one shape to another: understand the current state, migration plan, execute, verify, review, and ship only when the rollback path is real.",
+  "match": {
+    "keywords": [
+      "migrate",
+      "migration",
+      "migrating",
+      "upgrade",
+      "move",
+      "port",
+      "convert",
+      "transition",
+      "deprecate",
+      "remove",
+      "modernize"
+    ],
+    "priority": 80
+  },
+  "stages": [
+    {
+      "skill": "debugging-and-error-recovery",
+      "required": false,
+      "purpose": "Establish what the current implementation actually does before planning the move."
+    },
+    {
+      "skill": "deprecation-and-migration",
+      "required": true,
+      "purpose": "Own the migration strategy, the compatibility window, and the rollback path."
+    },
+    {
+      "skill": "test-driven-development",
+      "required": true,
+      "purpose": "Pin the behaviour that must survive the move with tests written before the change."
+    },
+    {
+      "skill": "code-review-and-quality",
+      "required": true,
+      "purpose": "Review the migration for leftover compatibility shims and silent behaviour drift."
+    },
+    {
+      "skill": "shipping-and-launch",
+      "required": false,
+      "purpose": "Prepare the rollout and rollback only when the migration is actually going out."
+    }
+  ],
+  "rules": [
+    "Complete each stage before treating it as complete.",
+    "The stage order is the shape of the work, not permission to migrate first and test later: cover the behaviour that must survive the move with tests before changing the code that provides it.",
+    "Never drop an old code path until the new one has proven itself in production-side conditions.",
+    "Keep the compatibility window explicit and time-boxed; an open-ended shim is a decision, not a default.",
+    "Do not claim verification that did not happen.",
+    "Record every irreversible step before taking it."
+  ],
+  "on_optional_missing": "skip",
+  "completion": "The migration is complete when the new path is verified, the old path is either removed or explicitly deprecated with a date, and the rollback path has been rehearsed."
+}

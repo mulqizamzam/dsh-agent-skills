@@ -1,0 +1,50 @@
+{
+  "name": "release",
+  "description": "Workflow for taking finished work to production: review the change, prove it with the existing suite, add the observability it needs, then ship it with a rollback path.",
+  "match": {
+    "keywords": [
+      "release",
+      "deploy",
+      "deployment",
+      "production",
+      "launch",
+      "ship",
+      "shipping",
+      "rollout",
+      "publish",
+      "go",
+      "live"
+    ],
+    "priority": 70
+  },
+  "stages": [
+    {
+      "skill": "code-review-and-quality",
+      "required": true,
+      "purpose": "Review exactly what is about to go out, including everything merged since the last release."
+    },
+    {
+      "skill": "test-driven-development",
+      "required": true,
+      "purpose": "Run and extend the suite against the release candidate so 'green' means something."
+    },
+    {
+      "skill": "observability-and-instrumentation",
+      "required": false,
+      "purpose": "Add the logging, metrics, and alerting needed to see this release fail before users do."
+    },
+    {
+      "skill": "shipping-and-launch",
+      "required": true,
+      "purpose": "Execute the launch checklist: staged rollout, monitoring, and a rehearsed rollback."
+    }
+  ],
+  "rules": [
+    "Complete each stage before treating it as complete.",
+    "No release goes out with an unverified claim in its notes.",
+    "If the rollback path has not been rehearsed, the release is blocked, not 'mostly ready'.",
+    "Do not claim verification that did not happen."
+  ],
+  "on_optional_missing": "skip",
+  "completion": "The release is complete when the rollout finished, the monitoring in place confirms healthy behaviour, and the rollback path is documented and rehearsed."
+}

@@ -1,0 +1,60 @@
+{
+  "name": "investigation",
+  "description": "Workflow for finding out why something behaves the way it does: gather repository context, track evidence, diagnose, and write findings down. Default workflow when a request carries no clear build or fix intent.",
+  "match": {
+    "keywords": [
+      "investigate",
+      "investigation",
+      "why",
+      "diagnose",
+      "diagnosis",
+      "explain",
+      "figure",
+      "understand",
+      "root",
+      "cause",
+      "failing",
+      "failure",
+      "failed",
+      "flaky",
+      "incident",
+      "unexpected",
+      "strange",
+      "weird",
+      "audit",
+      "postmortem"
+    ],
+    "priority": 100
+  },
+  "stages": [
+    {
+      "skill": "context-engineering",
+      "required": false,
+      "purpose": "Assemble the repository and session context the investigation will actually need."
+    },
+    {
+      "skill": "evidence-and-decision-tracking",
+      "required": true,
+      "purpose": "Separate facts, assumptions, and unknowns from the start so the diagnosis rests on evidence."
+    },
+    {
+      "skill": "debugging-and-error-recovery",
+      "required": true,
+      "purpose": "Diagnose the actual cause systematically rather than settling on the first plausible explanation."
+    },
+    {
+      "skill": "documentation-and-adrs",
+      "required": true,
+      "purpose": "Write the findings down, including what was ruled out and why, so the next session does not repeat the work."
+    }
+  ],
+  "rules": [
+    "Complete each stage before treating it as complete.",
+    "Label every claim as fact, assumption, or unknown; an unlabelled claim is treated as an assumption.",
+    "Attach each conclusion to the file, command, or test that proves it.",
+    "Do not fix anything in this workflow unless the request explicitly asks for a fix; the output is findings.",
+    "Do not claim verification that did not happen."
+  ],
+  "on_optional_missing": "skip",
+  "completion": "The investigation is complete when the findings name the cause, cite the evidence for it, and list what remains unknown."
+}

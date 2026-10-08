@@ -6,7 +6,11 @@ commands, and it drops straight into the host's native skill system with no cust
 code to maintain.
 
 This is a DSH-native port of [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills),
-plus two original skills (`testing-strategy`, `writing-repository-readme`) written for this plugin.
+plus four original skills (`testing-strategy`, `writing-repository-readme`,
+`evidence-and-decision-tracking`, `engineering-handoff`) written for this plugin.
+
+The nine alias commands load one guide each. The tenth, `/flow`, runs a whole
+**engineering workflow** by composing several guides into one coherent instruction.
 
 ---
 
@@ -23,8 +27,9 @@ planning, building, testing, reviewing, and shipping.
 
 **A "command"** is a short shortcut you type in chat to pull in one guide.
 Instead of asking the agent in vague words, you type `/review` and the agent loads
-the full code-review guide and works from it. There are **9 shortcuts**, each one
-just a door into one of the guides.
+the full code-review guide and works from it. There are **10 shortcuts**: nine are
+a door into one guide each, and one — `/flow` — runs a whole workflow made of
+several guides in the right order.
 
 That is the whole idea. No background daemons, no setup after install: the host
 loads the skill files and registers the commands at boot, and you use them.
@@ -35,19 +40,33 @@ loads the skill files and registers the commands at boot, and you use them.
 
 ```
 dsh-agent-skills/
-├── lib/index.js            ← the plugin: registers the 9 slash commands
+├── lib/
+│   ├── index.js            ← the plugin: registers the 10 slash commands
+│   ├── flow.js             ← the workflow engine (resolve + policy)
+│   ├── flow-select.js      ← deterministic request → workflow routing
+│   ├── flow-compose.js     ← assembles the one steering message
+│   ├── workflows.js        ← workflow definition schema + loader
+│   ├── skill-contracts.js  ← composition metadata schema + loader
+│   ├── json-file.js        ← strict JSON reader (rejects duplicate keys)
+│   ├── skill-catalog.js    ← the single shipped-skill enumeration
+│   └── counts.js           ← derived counts (single source of truth)
 ├── assets/
 │   ├── skills/            ← one folder per guide (SKILL.md + optional notes)
+│   ├── workflows/         ← the 5 workflow definitions (/flow reads these)
+│   ├── skill-contracts.json ← how skills compose (produces / consumes / risk)
 │   └── references/        ← 7 shared checklists the guides point to
 ├── cordis.patch.yml        ← tells the host where to find the skills + commands
 ├── package.json           ← plugin metadata (name, version, dependencies)
 ├── tests/                 ← the checks that prove it still works (see "Verify")
+├── docs/                  ← design record + verification policy
 ├── NOTICE.md              ← credits to the original author
 └── LICENSE                ← MIT
 ```
 
 - **Every skill** — the guides themselves (listed in full below).
-- **9 commands** — shortcuts that load one guide each (`/spec`, `/plan`, `/build`, …).
+- **10 commands** — nine that load one guide each (`/spec`, `/plan`, `/build`, …)
+  and `/flow`, which runs a whole workflow.
+- **5 workflow definitions** — what `/flow` can run, and in which order.
 - **7 shared references** — checklists that several guides reuse
   (testing patterns, a security checklist, performance tips, etc.).
 
@@ -68,18 +87,160 @@ Type any of these in chat, optionally followed by your request:
 | `/webperf` | `performance-optimization` | "Find and fix the slow parts (pages, queries, databases)." |
 | `/code-simplify` | `code-simplification` | "Make this code clearer without changing what it does." |
 | `/ship` | `shipping-and-launch` | "Checklist for putting this in front of real users safely." |
+| `/flow` | *composes several skills* | "Run a whole engineering workflow — see the next section." |
 
 Example: `/review check my auth changes for security issues`. The agent loads the
 full review guide and applies it to your request.
 
 > Not every skill has a shortcut — that is fine. The remaining skills are still
-> available; the agent reaches for them on its own when the task fits. The 9
-> shortcuts just give you the fastest door into the most-used guides.
+> available; the agent reaches for them on their own when the task fits. The
+> aliases just give you the fastest door into the most-used guides.
+
+---
+
+## `/flow` — run a whole workflow, not one guide
+
+`/flow` answers the question the aliases cannot: "what is the right *order* of
+engineering steps for this job?" You describe the work in plain words, the plugin
+picks the workflow, and the agent receives one instruction that carries the whole
+ordered sequence.
+
+```text
+/flow implement OAuth login
+/flow migrate the API from v1 to v2
+/flow investigate why CI started failing
+/flow prepare this feature for production
+```
+
+### How a request becomes a workflow
+
+```
+User Request
+     |
+     v
+/flow command
+     |
+     v
+Workflow Selector          (lib/flow-select.js — deterministic keyword rules)
+     |
+     v
+Workflow Definition        (assets/workflows/<name>.json — the ordered stages)
+     |
+     v
+Skill Contracts           (assets/skill-contracts.json — produces / consumes / risk)
+     |
+     v
+Canonical DSH Skills       (assets/skills/<name>/SKILL.md, loaded through the host)
+     |
+     v
+One Composed Agent Steering Message
+     |
+     v
+DSH Agent
+```
+
+Three rules govern that arrow chain, and they are the whole design:
+
+1. **The canonical `SKILL.md` is the source of truth for skill behaviour.** The
+   composer never rewrites, summarizes, or reorders a skill body. It embeds the
+   host's own `renderSkillContent()` output verbatim, exactly as the `skill` tool
+   and the alias commands do. Metadata exists for *composition*, never as a second
+   implementation.
+2. **The workflow is data, not code.** No workflow is hard-coded in the command
+   handler. Adding or reordering a stage is an edit to a JSON file.
+3. **One steering message for v1.** The agent, not the plugin runtime, executes
+   the stages. Nothing in the installed DSH API promises a multi-turn stage
+   machine, so the plugin does not invent one.
+
+### The five workflows
+
+| Workflow | Chosen when the request says… | Stages |
+|---|---|---|
+| `feature` | add / implement / build / create | *debugging (optional)* → spec → plan → build → test → review → ship (optional) |
+| `bugfix` | fix / broken / regression / crash | debugging → test → build → review |
+| `investigation` | investigate / why / failing / diagnose | context (optional) → evidence → diagnosis → findings |
+| `migration` | migrate / upgrade / deprecate | context (optional) → migration → test → review → ship (optional) |
+| `release` | release / deploy / production / ship | review → test → observability (optional) → ship |
+
+Selection is deterministic and explainable: each workflow declares its keywords,
+the selector counts which ones appear as whole words in the request, the highest
+count wins, and ties break on an explicit `priority`. A request that matches
+nothing falls back to `investigation` — the most conservative workflow, because
+understanding a change before making it is never the wrong first move.
+
+`bugfix` runs the test step twice on purpose: once to encode the bug before the
+fix, once to prove the fix holds. Because a workflow may not list the same skill
+twice, the second pass is stated as a workflow rule instead of a second stage.
+
+Optional stages are honest. A missing optional skill is dropped from the sequence
+and named under `Skipped`, with the instruction not to claim its output. A missing
+**required** skill fails the whole command with an error that names the skill —
+steering a workflow whose middle stage is absent would just make the agent invent
+the missing guidance.
+
+### Workflow definitions
+
+`assets/workflows/<name>.json`:
+
+```json
+{
+  "name": "feature",
+  "description": "Standard workflow for implementing a new product or engineering feature.",
+  "match": { "keywords": ["add", "implement", "build"], "priority": 60 },
+  "stages": [
+    { "skill": "spec-driven-development", "required": true, "purpose": "Pin the target." }
+  ],
+  "rules": ["Complete each stage before treating it as complete."],
+  "on_optional_missing": "skip",
+  "completion": "Done when the review passes and every claim is verified."
+}
+```
+
+The schema is small on purpose. Validation rejects an unknown key, a missing
+required field, a duplicate stage, a skill that is not shipped, and a file whose
+`name` does not match its file name. The full rule set is in
+`docs/workflow-orchestrator-spec.md`.
+
+### Skill contracts
+
+`assets/skill-contracts.json` answers "what does this skill hand to the next
+one?" — one entry per shipped skill:
+
+```json
+"spec-driven-development": {
+  "produces": ["specification"],
+  "consumes": ["user-request"],
+  "categories": ["planning"],
+  "risk_level": "low"
+}
+```
+
+The artifacts, categories, and risk levels come from closed vocabularies declared
+in the same file, so a typo fails at load instead of quietly creating a second
+spelling of the same concept. Every shipped skill has exactly one contract, and
+every contract names a shipped skill — the same exhaustiveness rule
+`autonomous-only.json` already enforces. Contracts are **not** a skill-discovery
+system: the native DSH registry remains authoritative for loading skills.
+
+### Evidence tracking and handoff
+
+Two skills in the catalog exist to make workflow output trustworthy, and both are
+usable on their own:
+
+- `evidence-and-decision-tracking` — a small output convention: FACTS,
+  ASSUMPTIONS, EVIDENCE, DECISIONS, UNKNOWN, VERIFICATION. Use it where it
+  materially helps; never as paperwork on a one-line answer.
+- `engineering-handoff` — a compact final state for an interrupted session, a
+  partial implementation, or a human takeover: STATUS, CHANGED, VERIFIED, NOT
+  VERIFIED, RISKS, DECISIONS, OPEN ITEMS, NEXT ACTION.
+
+The `investigation` workflow runs the first one as a required stage, and
+`bugfix` can use it to record the reproduction and the diagnosis.
 
 ---
 
 <!-- BEGIN:SKILL-COUNT -->
-## All 27 skills
+## All 29 skills
 <!-- END:SKILL-COUNT -->
 
 These are the guides in `assets/skills/`. The 9 above are the ones with a shortcut;
@@ -140,6 +301,8 @@ the rest the agent uses by judgment.
 | `using-agent-skills` | Discovers and invokes agent skills. Use when starting a session, or when you need to decide which skill or workflow applies to the piece of work at hand. This is the meta-skill that governs how all other skills are discovered and invoked. |
 | `documentation-and-adrs` | Records decisions and documentation. Use when you need to document an architecture decision (ADR) or the reasoning behind a design choice, when changing public APIs, shipping features, or when you need to record context that future engineers and agents will need to understand the codebase. |
 | `writing-repository-readme` | Writes or rewrites a repository README from evidence found in the actual files. Use when the owner asks to create a README, write documentation for a repo, make onboarding docs for newcomers, document setup steps for a project, or when an existing README has drifted from the code and must be regenerated from real commands and config. |
+| `evidence-and-decision-tracking` | Establishes a lightweight convention for separating facts, assumptions, evidence, decisions, unknowns, and verification. Use when a task turns on telling observation apart from interpretation, when an audit or investigation must attach every claim to evidence, or when a decision needs its alternatives and trade-off recorded. |
+| `engineering-handoff` | Produces a compact handoff of the current engineering state for an interrupted session, partial work, review handoff, or human takeover. Use when context is running out, when passing work to another agent or person, or when the reader needs to know what changed, what was verified, and what was not. |
 <!-- END:SKILL-TABLE -->
 
 ---
@@ -152,13 +315,55 @@ Two lines are added to the host's configuration (`cordis.patch.yml`):
 
 1. **A skill scanner** pointed at `assets/skills/`. The host reads each
    `SKILL.md` and puts every guide into the catalog the agent can reach.
-2. **This plugin's `lib/index.js`**, which registers the 9 commands.
+2. **This plugin's `lib/index.js`**, which registers the 10 commands.
 
 When you type `/review`, the command does exactly three small things and nothing
 more: it finds the guide by name, checks that it is something a user may call, and
 hands the guide's full text to the agent together with whatever you typed. There is
 no duplicated logic in the command — the guide is the single source of truth, so
 there is one place to edit.
+
+`/flow` is built the same way, one layer up. `lib/index.js` loads and validates the
+workflow definitions and the skill contracts **once, at plugin activation**, then
+registers a handler that does nothing but classify the request, resolve the stage
+skills through the same `ctx.skills.get()` lookup the aliases use, compose the
+message, and call `agent.steer()` a single time. If an asset is malformed, the nine
+aliases still register — they share nothing with the workflow layer — and `/flow`
+stays registered while reporting exactly which file and rule failed.
+`npm test` validates every shipped asset on each commit, so a green checkout can
+never reach that path.
+
+The message the agent receives is a header (goal, selected workflow, execution
+order, workflow rules, definition of done) followed by the ordered skill bodies,
+exactly as the host renders them:
+
+```text
+WORKFLOW
+========
+
+Goal:
+implement OAuth login
+
+Selected workflow:
+feature — Standard workflow for implementing a new product or engineering feature.
+
+Execution order:
+1. spec-driven-development (required) — Write down objectives, boundaries, and success criteria.
+   Artifacts: produces specification; consumes user-request.
+2. planning-and-task-breakdown (required) — …
+…
+
+STAGE 1 of 6: spec-driven-development
+Purpose: …
+
+<skill_content name="spec-driven-development">
+…
+</skill_content>
+…
+
+User request:
+implement OAuth login
+```
 
 There are no background processes to babysit; the host loads everything at startup.
 
@@ -276,8 +481,8 @@ If you get a non-zero exit, read the `FAIL` lines it prints — each points at t
 specific thing that did not register.
 
 > That is it. On the next chat, `/spec`, `/plan`, `/build`, `/test`,
-> `/constraints`, `/review`, `/webperf`, `/code-simplify`, and `/ship` are available,
-> and the agent can reach every skill on its own.
+> `/constraints`, `/review`, `/webperf`, `/code-simplify`, `/ship`, and `/flow` are
+> available, and the agent can reach every skill on its own.
 
 ---
 
@@ -296,6 +501,11 @@ agent (loads test-driven-development):   writing the failing test first, then th
 you>  /ship
 agent (loads shipping-and-launch):        pre-launch checklist — monitoring in place,
                                           staged rollout, rollback path…
+
+you>  /flow add OAuth login
+agent (runs the feature workflow):        spec → plan → build → test → review, with
+                                          each guide loaded in order and the
+                                          workflow rules carried along…
 ```
 
 You can also just ask in plain language ("review my changes", "help me plan this
@@ -309,17 +519,28 @@ shortcut. The shortcuts are the fast lane, not the only lane.
 Two levels, cheap to run:
 
 ```bash
-# 1. Static checks — no host needed. Four gates in sequence:
+# 1. Static checks — no host needed. Twelve gates in sequence:
 npm test
-#   structural.test.mjs     each SKILL.md parses cleanly, names are unique, refs resolve
-#   skill-load.test.mjs     each skill survives the real host FileSystemSkillProvider,
-#                           plus a mutation probe proving broken files get dropped
-#   e2e-handler.test.mjs    4 cases: happy path, missing skill, non-invocable, empty input
-#   command-routing.test.mjs 9 cases: each command resolves to the right skill
+#   structural.test.mjs        each SKILL.md parses cleanly, names are unique, refs resolve
+#   skill-load.test.mjs        each skill survives the real host FileSystemSkillProvider,
+#                              plus a mutation probe proving broken files get dropped
+#   e2e-handler.test.mjs       4 cases: happy path, missing skill, non-invocable, empty input
+#   command-routing.test.mjs   each alias resolves to the right skill; /flow is registered;
+#                              the real host registry accepts every definition
+#   mutation-gate.test.mjs     7 fixtures, each classified host-loader or structural
+#   gates-split.test.mjs       the structural gate and the host loader own separate halves
+#                              of the name-vs-directory rule
+#   frontmatter-integrity.test.mjs  byte-level frontmatter integrity (host YAML parser)
+#   workflow-definitions.test.mjs  valid load, malformed JSON, duplicate keys, duplicate
+#                              stages, missing fields, unknown skill reference
+#   skill-contracts.test.mjs   every contract is discoverable, schema violations rejected
+#   flow-select.test.mjs       the routing table, the fallback, and the tie-breaks
+#   flow-compose.test.mjs      ordering, verbatim bodies, skipped stages, request preserved
+#   flow-command.test.mjs      /flow end to end: one steer, source metadata, failure paths
 
 # 2. Live check — after a restart, against the running host:
 bash tests/verify-live.sh           # exit 0 = all registered
-node tests/verify-catalog-live.mjs  # every skill in the live catalog, 9 commands present
+node tests/verify-catalog-live.mjs  # every skill declared on disk, names match directories
 ```
 
 The static checks use the host's **exact** YAML parser rather than a home-grown
@@ -342,9 +563,12 @@ The 25 ported guides are a faithful port of
 licensed, © 2025 Addy Osmani. Full credit is in `NOTICE.md`. In short:
 
 - 25 skill bodies shipped essentially verbatim.
-- The 26th guide, `testing-strategy`, is original to this plugin and is not
-  part of the upstream port.
-`writing-repository-readme` is also original to this plugin.
+- Four guides are original to this plugin and are not part of the upstream port:
+  `testing-strategy`, `writing-repository-readme`, `evidence-and-decision-tracking`,
+  and `engineering-handoff`.
+- The entire workflow layer (`/flow`, `assets/workflows/`,
+  `assets/skill-contracts.json`, `lib/flow*.js`) is original. Upstream has no
+  equivalent to port from.
 - A few `description` lines were trimmed to fit the host's catalog size limit,
   and one was quoted to fix a YAML hazard that would otherwise have dropped that
   skill silently.
@@ -387,10 +611,23 @@ Honest about the edges, so nobody is surprised later:
    also caught its own bug on day one: comparing the raw `description:` line
    instead of the YAML-parsed value false-failed on the quoted scalar in
    `git-workflow-and-versioning`.
-3. **When you add a skill, the count moves in six places.** See
-   `## Adding a skill` below for the runbook; forgetting one breaks `npm test`
-   or this README's own contract.
-4. **`/webperf` and `/ship` are guides, not specialists.** They load the
+3. **Workflow definitions are JSON, not YAML.** The host parses YAML with
+   `yaml@2.9.0` out of its own `node_modules`, and that package is not resolvable
+   from inside this plugin (verified: `require.resolve('yaml')` from the plugin
+   root fails). Adding it as a dependency to gain a nicer authoring format was
+   not worth the new runtime edge, so the definitions are JSON: parsed by Node
+   itself, no parser to drift from the host. The trade is a leading comma
+   discipline and no comments.
+4. **`/flow` composes one message, not a staged runtime.** The installed DSH API
+   exposes no hook for a plugin to drive a multi-turn stage machine, so v1 builds
+   the best possible single instruction and lets the agent execute the stages.
+   A later increment can revisit this only against a real host API, not a hoped-for one.
+5. **A composed workflow is a large message.** Measured locally through the
+   host's own `renderSkillContent`, the `feature` workflow with all seven stages
+   resolves to 94,748 characters. Nothing in the static suite measures how a
+   *live* host handles a message of that size, so if a host ever starts
+   truncating steering input, a long workflow is the first thing to check.
+6. **`/webperf` and `/ship` are guides, not specialists.** They load the
    `performance-optimization` and `shipping-and-launch` guides. The upstream project
    also shipped dedicated "persona" agents for those; this port delegates to the
    guides instead, so you get the checklist but not a separate specialist's
@@ -409,20 +646,23 @@ characters. The body stays under 24000 bytes. The host drops anything that
 fails those rules with only a warning, so the gates below are what actually
 tells you the skill landed.
 
-Adding one guide touches more files than you would expect, because the catalog
-size is asserted in several places. The count lives in six:
+The count is derived everywhere it is asserted (`lib/counts.js` reads the
+catalog, `scripts/gen-readme.mjs` regenerates the two marked README regions), so a
+new skill needs exactly two edits and no gate asks you to remember a number:
 
 | # | File | What to change |
 |---|------|----------------|
-| 1 | `assets/skills/<nama>/SKILL.md` | The skill itself. Frontmatter `name` must equal the directory name. |
-| 2 | `tests/structural.test.mjs` | The `names.length !== N` assertion and its message. |
-| 3 | `tests/verify-catalog-live.mjs` | The `declared.size !== N` assertion and its message. |
-| 4 | `tests/verify-live.sh` | The human-readable count string. |
-| 5 | `package.json` | The `description` field, if it states the number. |
-| 6 | `README.md` | The intro count, the `## All N skills` heading, the table row, and the verify-section comments. |
+| 1 | `assets/skills/<name>/SKILL.md` | The skill itself. Frontmatter `name` must equal the directory name. |
+| 2 | `assets/skill-contracts.json` | One contract entry. `skill-contracts.test.mjs` fails if a shipped skill has none. |
 
-Land the folder and all six edits in one commit: either half alone fails
-`npm test` for anyone who checks out that intermediate state.
+Then regenerate the README table (`npm run readme:gen`). `NOTICE.md` is not one of
+the two: it records how many bodies came from upstream (25), which stays constant
+unless you port more from upstream; a skill written for this plugin goes under its
+`## What this plugin added` section instead.
+
+If the skill should also be a workflow stage, that is a third edit — add it to a
+`stages` list in `assets/workflows/<workflow>.json`. Nothing else moves: the stage
+is resolved through the host's own catalog by name.
 
 `NOTICE.md` is not one of the six. It records how many bodies came from upstream
 (25), which stays constant unless you port more from upstream; a skill written
@@ -431,7 +671,7 @@ for this plugin goes under its `## What this plugin added` section instead.
 Then verify:
 
 ```bash
-npm test                      # all four gates must pass
+npm test                      # the full static gate suite
 bash tests/verify-live.sh     # after the host has been restarted
 ```
 
@@ -440,10 +680,17 @@ the first line is exactly `---`, it has both `name` and `description`, `name`
 matches the directory name, `description` contains a "Use when" clause and stays
 under 400 characters, and the file stays under 24 KB.
 
-Adding a slash command is a separate change: the name goes into
-`COMMAND_SKILL_MAP` in `lib/index.js`, and both `command-routing.test.mjs` and
-the count check in `structural.test.mjs` (which fails unless the map holds
-exactly nine entries) have to move with it.
+Adding a slash command is a separate change. An **alias** for one skill goes
+into `COMMAND_SKILL_MAP` in `lib/index.js`; the structural gate keeps that map at
+exactly nine entries, so a tenth alias is a deliberate change to that gate too. A
+**workflow** command goes into `WORKFLOW_COMMAND_MAP`, and `lib/counts.js` derives
+the shipped command total from both maps automatically.
+
+Adding a workflow is the easy case: one new file in `assets/workflows/`. The
+definition must carry a unique kebab-case `name` equal to the file stem, at least
+one stage, and `match.keywords` so the selector can see it. If the name collides
+with the fallback (`investigation`), the selector will no longer have somewhere
+to land an unmatched request and the gate says so.
 
 ---
 
@@ -520,11 +767,25 @@ Confirm the host actually restarted after the mount (step 4). The commands only
 register at boot. If you changed `cordis.patch.yml` or the skills folder after
 installing, a restart is also needed.
 
+### `/flow` says the workflow assets failed to load
+
+A malformed `assets/workflows/*.json` or `assets/skill-contracts.json` was found
+while the plugin booted. The nine alias commands are unaffected. Run `npm test` —
+`workflow-definitions.test.mjs` and `skill-contracts.test.mjs` print the file and
+the violated rule.
+
+### `/flow` says a required skill is not available
+
+The workflow named in the error could not resolve one of its stages through the
+host catalog. Either the skill directory was removed, or another provider won the
+name with a `modelInvocable: false` policy. The plugin refuses to steer a workflow
+with a hole in it rather than let the agent invent the missing guidance.
+
 ---
 
 ## In one line
 
-`dsh-agent-skills` gives your DSH agent every engineering guide and 9 one-word
-shortcuts for the parts of software work you do over and over — install it once,
-restart once, and use the `/` commands whenever you want a strong engineer's
-playbook, on demand.
+`dsh-agent-skills` gives your DSH agent every engineering guide, ten shortcuts for
+the parts of software work you do over and over, and one `/flow` command that runs
+a whole workflow in the right order — install it once, restart once, and use the
+`/` commands whenever you want a strong engineer's playbook, on demand.

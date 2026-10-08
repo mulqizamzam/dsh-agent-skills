@@ -9,6 +9,11 @@
 // skills, beyond the structural gate which only checks syntax and catalog
 // presence. Without it, a command could be registered but pointing to a
 // non-existent skill.
+//
+// It also covers the tenth command, /flow: the workflow command composes several
+// skills into one steering message, so it is verified here too (see
+// tests/flow-command.test.mjs for the full behaviour matrix). Registering it
+// next to the aliases is what proves the plugin ships one command surface.
 
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
@@ -34,6 +39,9 @@ const COMMAND_SKILL_MAP = {
   'code-simplify': 'code-simplification',
   ship: 'shipping-and-launch',
 }
+
+// Workflow commands compose skills; /flow is the only one in v1.
+const WORKFLOW_COMMANDS = ['flow']
 
 // Build a minimal catalog that satisfies ctx.skills.get by name.
 // Each skill entry must include `invocation.userInvocable: true` or
@@ -230,18 +238,28 @@ if (autonomousMap && Array.isArray(autonomousMap)) {
   const ctx = new Context()
   await ctx.plugin(CommandRuntime)
 
-  // 1. The definitions this plugin actually registers must be accepted.
+  // 1. The definitions this plugin actually registers must be accepted. The
+  //    count is derived from the maps the plugin ships, so the message cannot
+  //    drift when a command is added.
   const mod = await loadModule()
   let thrownOnRealRegistry = null
+  const realRegistered = []
   const realCtx = {
-    commands: { register: (d) => ctx.commands.register(d) },
+    commands: { register: (d) => { realRegistered.push(d); ctx.commands.register(d) } },
     skills: buildMockCatalog('spec-driven-development'),
   }
   try { mod.apply(realCtx) } catch (e) { thrownOnRealRegistry = e }
+  const expectedCommands = Object.keys(COMMAND_SKILL_MAP).length + WORKFLOW_COMMANDS.length
   if (thrownOnRealRegistry === null) {
-    console.log('PASS real host registry accepts all 9 shipped command definitions')
+    console.log(`PASS real host registry accepts all ${expectedCommands} shipped command definitions`)
   } else {
     console.error(`FAIL real host registry rejected a shipped definition: ${thrownOnRealRegistry.message}`)
+    failures++
+  }
+  if (realRegistered.length === expectedCommands) {
+    console.log(`PASS plugin registered exactly ${expectedCommands} commands on the real registry`)
+  } else {
+    console.error(`FAIL plugin registered ${realRegistered.length} commands, expected ${expectedCommands}`)
     failures++
   }
 

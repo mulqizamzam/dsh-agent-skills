@@ -7,6 +7,8 @@
   "deprecation-and-migration",
   "documentation-and-adrs",
   "doubt-driven-development",
+  "engineering-handoff",
+  "evidence-and-decision-tracking",
   "frontend-ui-engineering",
   "git-workflow-and-versioning",
   "idea-refine",

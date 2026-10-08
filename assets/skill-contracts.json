@@ -1,0 +1,206 @@
+{
+  "skills": {
+    "api-and-interface-design": {
+      "produces": ["specification", "implementation-plan"],
+      "consumes": ["user-request", "repository-context"],
+      "categories": ["building"],
+      "risk_level": "medium"
+    },
+    "browser-testing-with-devtools": {
+      "produces": ["verification-report"],
+      "consumes": ["repository-context", "change-set"],
+      "categories": ["quality"],
+      "risk_level": "low"
+    },
+    "ci-cd-and-automation": {
+      "produces": ["launch-plan"],
+      "consumes": ["repository-context", "change-set"],
+      "categories": ["operating"],
+      "risk_level": "medium"
+    },
+    "code-review-and-quality": {
+      "produces": ["verification-report"],
+      "consumes": ["repository-context"],
+      "categories": ["quality"],
+      "risk_level": "low"
+    },
+    "code-simplification": {
+      "produces": ["change-set"],
+      "consumes": ["repository-context"],
+      "categories": ["quality"],
+      "risk_level": "medium"
+    },
+    "constraint-driven-development": {
+      "produces": ["specification"],
+      "consumes": ["user-request", "repository-context"],
+      "categories": ["quality"],
+      "risk_level": "low"
+    },
+    "context-engineering": {
+      "produces": ["repository-context"],
+      "consumes": ["user-request"],
+      "categories": ["meta"],
+      "risk_level": "low"
+    },
+    "debugging-and-error-recovery": {
+      "produces": ["reproduction", "diagnosis"],
+      "consumes": ["user-request", "repository-context"],
+      "categories": ["maintaining"],
+      "risk_level": "medium"
+    },
+    "deprecation-and-migration": {
+      "produces": ["implementation-plan", "change-set", "verification-report"],
+      "consumes": ["repository-context", "diagnosis"],
+      "categories": ["maintaining"],
+      "risk_level": "high"
+    },
+    "documentation-and-adrs": {
+      "produces": ["evidence-log"],
+      "consumes": ["repository-context", "diagnosis", "specification"],
+      "categories": ["meta"],
+      "risk_level": "low"
+    },
+    "doubt-driven-development": {
+      "produces": ["implementation-plan"],
+      "consumes": ["repository-context", "implementation-plan"],
+      "categories": ["planning"],
+      "risk_level": "medium"
+    },
+    "engineering-handoff": {
+      "produces": ["evidence-log"],
+      "consumes": ["repository-context", "change-set", "verification-report", "evidence-log"],
+      "categories": ["meta"],
+      "risk_level": "low"
+    },
+    "evidence-and-decision-tracking": {
+      "produces": ["evidence-log"],
+      "consumes": ["repository-context"],
+      "categories": ["meta"],
+      "risk_level": "low"
+    },
+    "frontend-ui-engineering": {
+      "produces": ["change-set", "verification-report"],
+      "consumes": ["specification", "implementation-plan"],
+      "categories": ["building"],
+      "risk_level": "medium"
+    },
+    "git-workflow-and-versioning": {
+      "produces": ["change-set"],
+      "consumes": ["repository-context", "change-set"],
+      "categories": ["version-control"],
+      "risk_level": "medium"
+    },
+    "idea-refine": {
+      "produces": ["specification"],
+      "consumes": ["user-request"],
+      "categories": ["planning"],
+      "risk_level": "low"
+    },
+    "incremental-implementation": {
+      "produces": ["change-set", "verification-report"],
+      "consumes": ["repository-context", "specification", "implementation-plan"],
+      "categories": ["building"],
+      "risk_level": "medium"
+    },
+    "interview-me": {
+      "produces": ["specification"],
+      "consumes": ["user-request"],
+      "categories": ["planning"],
+      "risk_level": "low"
+    },
+    "observability-and-instrumentation": {
+      "produces": ["launch-plan", "verification-report"],
+      "consumes": ["repository-context", "change-set"],
+      "categories": ["operating"],
+      "risk_level": "medium"
+    },
+    "performance-optimization": {
+      "produces": ["change-set", "verification-report"],
+      "consumes": ["repository-context", "verification-report"],
+      "categories": ["operating"],
+      "risk_level": "high"
+    },
+    "planning-and-task-breakdown": {
+      "produces": ["implementation-plan"],
+      "consumes": ["specification", "user-request"],
+      "categories": ["planning"],
+      "risk_level": "low"
+    },
+    "security-and-hardening": {
+      "produces": ["verification-report"],
+      "consumes": ["repository-context", "change-set"],
+      "categories": ["maintaining"],
+      "risk_level": "high"
+    },
+    "shipping-and-launch": {
+      "produces": ["launch-plan"],
+      "consumes": ["repository-context", "change-set", "verification-report"],
+      "categories": ["operating"],
+      "risk_level": "high"
+    },
+    "source-driven-development": {
+      "produces": ["implementation-plan"],
+      "consumes": ["specification", "user-request"],
+      "categories": ["building"],
+      "risk_level": "low"
+    },
+    "spec-driven-development": {
+      "produces": ["specification"],
+      "consumes": ["user-request"],
+      "categories": ["planning"],
+      "risk_level": "low"
+    },
+    "test-driven-development": {
+      "produces": ["verification-report", "change-set"],
+      "consumes": ["repository-context", "specification", "implementation-plan"],
+      "categories": ["quality"],
+      "risk_level": "low"
+    },
+    "testing-strategy": {
+      "produces": ["implementation-plan"],
+      "consumes": ["repository-context", "user-request"],
+      "categories": ["quality"],
+      "risk_level": "low"
+    },
+    "using-agent-skills": {
+      "produces": ["repository-context"],
+      "consumes": ["user-request"],
+      "categories": ["meta"],
+      "risk_level": "low"
+    },
+    "writing-repository-readme": {
+      "produces": ["evidence-log"],
+      "consumes": ["repository-context", "change-set"],
+      "categories": ["meta"],
+      "risk_level": "low"
+    }
+  },
+  "vocabularies": {
+    "artifacts": [
+      "user-request",
+      "repository-context",
+      "reproduction",
+      "diagnosis",
+      "specification",
+      "implementation-plan",
+      "change-set",
+      "verification-report",
+      "evidence-log",
+      "launch-plan"
+    ],
+    "categories": [
+      "planning",
+      "building",
+      "quality",
+      "version-control",
+      "operating",
+      "maintaining",
+      "meta"
+    ],
+    "risk_levels": [
+      "low",
+      "medium",
+      "high"
+    ]
+  }
+}

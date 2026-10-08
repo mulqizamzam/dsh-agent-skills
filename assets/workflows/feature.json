@@ -1,0 +1,64 @@
+{
+  "name": "feature",
+  "description": "Standard workflow for implementing a new product or engineering feature: pin the spec, break it down, build it in slices, prove it with tests, review it, then ship it when it is ready.",
+  "match": {
+    "keywords": [
+      "feature",
+      "add",
+      "implement",
+      "build",
+      "create",
+      "introduce",
+      "support",
+      "new"
+    ],
+    "priority": 60
+  },
+  "stages": [
+    {
+      "skill": "debugging-and-error-recovery",
+      "required": false,
+      "purpose": "Understand how the existing code behaves and what constraints it carries before changing anything."
+    },
+    {
+      "skill": "spec-driven-development",
+      "required": true,
+      "purpose": "Write down objectives, boundaries, and success criteria so the work has a fixed target."
+    },
+    {
+      "skill": "planning-and-task-breakdown",
+      "required": true,
+      "purpose": "Break the spec into ordered, independently verifiable tasks."
+    },
+    {
+      "skill": "incremental-implementation",
+      "required": true,
+      "purpose": "Land the work in thin slices, each one verifiable on its own."
+    },
+    {
+      "skill": "test-driven-development",
+      "required": true,
+      "purpose": "Prove behaviour with tests written before the code that satisfies them."
+    },
+    {
+      "skill": "code-review-and-quality",
+      "required": true,
+      "purpose": "Review the finished change across correctness, security, and maintainability before it merges."
+    },
+    {
+      "skill": "shipping-and-launch",
+      "required": false,
+      "purpose": "Prepare the rollout only when the feature is actually going out."
+    }
+  ],
+  "rules": [
+    "Complete each stage before treating it as complete.",
+    "The stage order is the shape of the work, not permission to implement everything before testing it: the test-driven-development discipline governs what happens inside each build slice, so the test for a slice comes before the code for that slice.",
+    "Carry verified findings forward into the next stage instead of re-deriving them.",
+    "Do not silently skip a required stage; a stage you could not complete is reported as blocked.",
+    "Do not claim verification that did not happen.",
+    "Keep the spec and the task list updated when the work changes shape."
+  ],
+  "on_optional_missing": "skip",
+  "completion": "The feature is complete when the review stage passes and every claim in the final report is backed by a command that was actually run."
+}

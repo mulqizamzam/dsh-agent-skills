@@ -50,7 +50,8 @@ const check = (label, cond, detail) => {
   }
   const mod = await import(join(PLUGIN_ROOT, 'lib', 'index.js'))
   mod.apply(fakeCtx)
-  check('case1: 9 commands registered', registered.length === 9, `got ${registered.length}`)
+  // 10 = the 9 skill aliases plus /flow, the one workflow command.
+  check('case1: 10 commands registered', registered.length === 10, `got ${registered.length}`)
   check('case1: /spec exists', registered.some(r => r.name === 'spec'), 'missing')
 
   const fakeAgent = { steer: (m) => steered.push(m) }

@@ -1,8 +1,8 @@
 {
   "name": "dsh-agent-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "DSH-native port of addyosmani/agent-skills: lifecycle engineering skills plus original additions (testing-strategy, writing-repository-readme), a thin slash-command layer, and shared references, mounted through the host's skill-filesystem provider and command registry.",
+  "description": "DSH-native port of addyosmani/agent-skills: lifecycle engineering skills plus original additions (testing-strategy, writing-repository-readme, evidence-and-decision-tracking, engineering-handoff), a thin slash-command layer, and a /flow workflow orchestrator that composes those skills into one engineering workflow, mounted through the host's skill-filesystem provider and command registry.",
   "license": "MIT",
   "keywords": [
     "deepseek-harness",
@@ -28,7 +28,7 @@
     "NOTICE.md"
   ],
   "scripts": {
-    "test": "node tests/structural.test.mjs && node tests/skill-load.test.mjs && node tests/e2e-handler.test.mjs && node tests/command-routing.test.mjs && node tests/mutation-gate.test.mjs && node tests/gates-split.test.mjs && node tests/frontmatter-integrity.test.mjs && node scripts/gen-readme.mjs --check",
+    "test": "node tests/structural.test.mjs && node tests/skill-load.test.mjs && node tests/e2e-handler.test.mjs && node tests/command-routing.test.mjs && node tests/mutation-gate.test.mjs && node tests/gates-split.test.mjs && node tests/frontmatter-integrity.test.mjs && node tests/workflow-definitions.test.mjs && node tests/skill-contracts.test.mjs && node tests/flow-select.test.mjs && node tests/flow-compose.test.mjs && node tests/flow-command.test.mjs && node scripts/gen-readme.mjs --check",
     "readme:gen": "node scripts/gen-readme.mjs",
     "readme:check": "node scripts/gen-readme.mjs --check",
     "skill:new": "node scripts/new-skill.mjs",
