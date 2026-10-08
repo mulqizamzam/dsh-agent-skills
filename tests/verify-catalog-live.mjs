@@ -1,6 +1,6 @@
 // Live catalog verification.
 //
-// Compares the 27 skill names declared on disk against the skill catalog the
+// Compares the skill names declared on disk against the skill catalog the
 // running host actually served. The catalog is the only proof that the loader
 // accepted each SKILL.md: a skill missing frontmatter, or unparseable YAML,
 // would be dropped silently by parseSkillFile (packages/skill/skill-filesystem).
@@ -10,10 +10,11 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const SKILLS_DIR = join(ROOT, 'assets', 'skills')
+const { countSkills } = await import(pathToFileURL(join(ROOT, 'lib', 'counts.js')).href)
 
 // Skill names as declared on disk.
 const declared = new Map()
@@ -56,11 +57,15 @@ if (mismatch.length > 0) {
   console.error(`FAIL ${mismatch.length} skill name(s) differ from their directory — host may still load them but the catalog contract is broken`)
   process.exit(1)
 }
-// Fail closed on catalog size drift: the structural gate already asserts 27,
-// but this script is the operator-facing post-restart check and must not
-// silently report OK when a skill was lost.
-if (declared.size !== 27) {
-  console.error(`FAIL catalog size ${declared.size} !== expected 27`)
+// Fail closed on catalog size drift: the structural gate derives its own
+// expectation, and this script is the operator-facing post-restart check, so
+// neither may silently report OK when a skill was lost. countSkills() counts
+// subdirectories holding a SKILL.md; `declared` only counts directories whose
+// frontmatter yielded a name. A gap between them is a skill the host would
+// drop or this script could not read.
+const expected = countSkills()
+if (declared.size !== expected) {
+  console.error(`FAIL catalog size ${declared.size} !== ${expected} skill dirs containing SKILL.md`)
   process.exit(1)
 }
 console.log('RESULT: disk contract OK — run verify-live.sh for the profile wiring checks')

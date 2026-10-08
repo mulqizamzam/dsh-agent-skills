@@ -9,7 +9,7 @@
 
 import { readFile, readdir, stat } from 'node:fs/promises'
 import { join, basename, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -27,6 +27,7 @@ const require = createRequire(import.meta.url)
 const { parse: parseYaml } = require(
   join(HARNESS, 'node_modules/.pnpm/yaml@2.9.0/node_modules/yaml'),
 )
+const { countSkills } = await import(pathToFileURL(join(PLUGIN_ROOT, 'lib', 'counts.js')).href)
 
 const failures = []
 const fail = (msg) => { failures.push(msg); process.stderr.write(`FAIL ${msg}\n`) }
@@ -55,7 +56,15 @@ async function listSkillDirs() {
 async function verifySkills() {
   const names = await listSkillDirs()
   if (names.length === 0) { fail('no skill directories found'); return [] }
-  if (names.length !== 27) { fail(`catalog incomplete: expected 27 skills, found ${names.length}`); return names }
+  // Derived expectation, not a literal. countSkills() enumerates the same
+  // directory by a different rule (subdirectories holding a SKILL.md), so a
+  // disagreement here means one of the two enumerations is wrong. That is the
+  // drift the old hardcoded count could not see. Do not return on mismatch:
+  // the per-dir loop below must still name the offending directory.
+  const expected = countSkills()
+  if (expected !== names.length) {
+    fail(`countSkills() reports ${expected} SKILL.md dir(s) but this gate sees ${names.length} skill dir(s)`)
+  }
 
   const seen = new Set()
   let totalDescChars = 0

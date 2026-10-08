@@ -2,7 +2,7 @@
   "name": "dsh-agent-skills",
   "version": "0.1.0",
   "private": true,
-  "description": "DSH-native port of addyosmani/agent-skills: 25 lifecycle engineering skills plus 2 original (testing-strategy, writing-repository-readme), 9 thin slash commands, and shared references, mounted through the host's skill-filesystem provider and command registry.",
+  "description": "DSH-native port of addyosmani/agent-skills: lifecycle engineering skills plus original additions (testing-strategy, writing-repository-readme), a thin slash-command layer, and shared references, mounted through the host's skill-filesystem provider and command registry.",
   "license": "MIT",
   "keywords": [
     "deepseek-harness",

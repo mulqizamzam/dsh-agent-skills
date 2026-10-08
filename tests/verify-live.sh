@@ -34,6 +34,24 @@ PROFILE_PRESENT=0
 ok()   { printf 'PASS %s\n' "$1"; }
 bad()  { printf 'FAIL %s\n' "$1"; FAIL=1; }
 
+# Derived counts. The shipped skill count is read from lib/counts.js rather
+# than written into this file, so adding a skill needs no edit here. A broken
+# counter must fail, not print an empty number that reads as a pass.
+derive_count() {
+  node --input-type=module -e "
+import { pathToFileURL } from 'node:url';
+const mod = await import(pathToFileURL(process.argv[1]).href);
+process.stdout.write(String(mod[process.argv[2]]()));
+" "$PLUGIN_DIR/lib/counts.js" "$1" 2>/dev/null
+}
+
+SKILL_COUNT=$(derive_count countSkills)
+case "$SKILL_COUNT" in
+  ''|*[!0-9]*)
+    bad "lib/counts.js countSkills() tidak menghasilkan angka: '${SKILL_COUNT}'"
+    SKILL_COUNT='?' ;;
+esac
+
 # 1. HTTP probe web GUI
 # curl already writes 000 to stdout on transport failure, so a `|| echo 000`
 # fallback appends a SECOND 000 and yields "000000". Drop the fallback.
@@ -85,7 +103,7 @@ if (!bundles.includes('dsh-agent-skills')) {
 catalog_out=$(node "$PLUGIN_DIR/tests/verify-catalog-live.mjs" 2>&1)
 catalog_rc=$?
 if [ "$catalog_rc" -eq 0 ]; then
-  ok "27 skill name valid, 0 mismatch name!==dir"
+  ok "$SKILL_COUNT skill name valid, 0 mismatch name!==dir"
 else
   bad "verify-catalog-live gagal (exit $catalog_rc):"
   printf '%s\n' "$catalog_out" | sed 's/^/    /' >&2
@@ -100,7 +118,7 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
   ( cd "$PLUGIN_DIR" && node tests/structural.test.mjs >/dev/null 2>&1 ) \
     && ok "structural gate exit 0" || bad "structural gate gagal"
   ( cd "$PLUGIN_DIR" && node tests/skill-load.test.mjs >/dev/null 2>&1 ) \
-    && ok "skill-load e2e gate exit 0 (27/27 via host provider)" || bad "skill-load e2e gate gagal"
+    && ok "skill-load e2e gate exit 0 ($SKILL_COUNT/$SKILL_COUNT via host provider)" || bad "skill-load e2e gate gagal"
   ( cd "$PLUGIN_DIR" && node tests/e2e-handler.test.mjs >/dev/null 2>&1 ) \
     && ok "e2e handler gate exit 0" || bad "e2e handler gate gagal"
   ( cd "$PLUGIN_DIR" && node tests/command-routing.test.mjs >/dev/null 2>&1 ) \
