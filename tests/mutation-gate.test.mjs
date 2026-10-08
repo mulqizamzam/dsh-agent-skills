@@ -138,6 +138,23 @@ async function main() {
           }
         }
 
+        // Task 5b: a silent drop is worse than a loud one, so the WARNING itself
+        // is part of the contract. Exactly one warning per dropped fixture, and
+        // it must name the file that was dropped — a warning that does not say
+        // which skill vanished leaves the operator nothing to act on.
+        if (warnings.length === 1) {
+          pass(`${fixture} (host-loader): exactly one warning emitted`)
+        } else {
+          fail(`${fixture} (host-loader): expected exactly 1 warning for one dropped skill, got ${warnings.length}: ${warnings.join(' | ')}`)
+          overallFailures += 1
+        }
+        if (warnings.some((w) => w.includes(tmpSkillPath))) {
+          pass(`${fixture} (host-loader): warning names the dropped file path`)
+        } else {
+          fail(`${fixture} (host-loader): no warning names the dropped file ${tmpSkillPath}. Got: ${warnings.join(' | ')}`)
+          overallFailures += 1
+        }
+
         await abort.abort()
         await provider.dispose()
       } else if (gate === 'structural') {
