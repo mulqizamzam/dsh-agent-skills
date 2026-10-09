@@ -48,6 +48,12 @@ const ROUTING_TABLE = [
   ['deploy the new worker to production', 'release'],
   ['create a settings page for the account', 'feature'],
   ['we need to implement the billing rework', 'feature'],
+  // "go" and "live" were release keywords until 0.2.1. On a 1-1 tie the
+  // priority rule let release (70) beat feature (60), so a request to
+  // implement something that also said "go over the edge cases" was routed to
+  // a workflow with no spec, planning, or implementation stage.
+  ['implement dark mode and go over the edge cases', 'feature'],
+  ['take the payments feature live', 'feature'],
 ]
 
 for (const [request, expected] of ROUTING_TABLE) {
@@ -94,6 +100,30 @@ for (const request of ['make this better', 'do the thing', 'hmm', 'help']) {
     pass('tie resolves by priority (investigation outranks feature)')
   } else {
     fail(`tie resolved to ${selection.workflow.name}, expected investigation`)
+  }
+}
+
+// --- Tie-break by name when score AND priority are equal ---
+// The shipped definitions carry distinct priorities (100/90/80/70/60), so this
+// branch cannot be reached through them and went uncovered: inverting the
+// comparison left every gate green. Synthetic definitions make it reachable.
+
+{
+  const base = {
+    description: 'x',
+    match: { keywords: ['zebra'], priority: 5 },
+    stages: [],
+    rules: [],
+    on_optional_missing: 'skip',
+  }
+  const alpha = { ...base, name: 'alpha' }
+  const beta = { ...base, name: 'beta' }
+  const forward = selectWorkflow([alpha, beta], 'zebra')
+  const backward = selectWorkflow([beta, alpha], 'zebra')
+  if (forward.workflow.name === 'alpha' && backward.workflow.name === 'alpha') {
+    pass('equal score and priority resolve on the lower name, independent of input order')
+  } else {
+    fail(`name tie-break chose ${forward.workflow.name}/${backward.workflow.name}, expected alpha/alpha`)
   }
 }
 

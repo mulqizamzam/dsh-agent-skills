@@ -127,15 +127,19 @@ CHANGED
 VERIFIED
 - npm test → exit 0, 12 gate files
 - host FileSystemSkillProvider → 29/29 skills discovered and loaded
+- /flow ran on the live host after the operator's restart: tests/verify-live.sh
+  exit 0, 10/10 commands registered
 
 NOT VERIFIED
-- Behaviour of /flow against the running host. No host restart was performed,
-  so the command is not registered there yet.
+- Steering a message at the top of the size range against a live session. The
+  composed `feature` workflow measures 94,724 characters locally through the
+  host's own renderer, and `/flow` was exercised live on the 4-stage release
+  workflow, but no 7-stage push was measured end to end.
 
 RISKS
-- The composed message carries up to seven rendered skill bodies. Measured
-  locally at 94,748 characters for the feature workflow; not measured against a
-  live host.
+- The composed message carries up to seven rendered skill bodies: 94,724
+  characters for the feature workflow, measured locally, figures printed by
+  tests/flow-compose.test.mjs on every run.
 
 DECISIONS
 - One steering message for v1. Rejected: a multi-turn stage machine — no

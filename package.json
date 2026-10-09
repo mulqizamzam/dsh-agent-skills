@@ -1,6 +1,6 @@
 {
   "name": "dsh-agent-skills",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "DSH-native port of addyosmani/agent-skills: lifecycle engineering skills plus original additions (testing-strategy, writing-repository-readme, evidence-and-decision-tracking, engineering-handoff), a thin slash-command layer, and a /flow workflow orchestrator that composes those skills into one engineering workflow, mounted through the host's skill-filesystem provider and command registry.",
   "license": "MIT",

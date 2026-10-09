@@ -154,6 +154,30 @@ await verifyReferences(skills)
 const commands = await verifyCommands()
 await verifyMapping()
 
+// --- verify-live.sh must be able to fail ---
+// The operator's post-restart gate printed FAIL for the gate results and for a
+// non-numeric derived count without ever setting an exit code, so a red line
+// still ended in "RESULT: PASS" exit 0. Measured before the fix: a mutated
+// countTotalCommands() printed FAIL and the script exited 0.
+
+async function verifyLiveScript() {
+  const src = await readFile(join(PLUGIN_ROOT, 'tests', 'verify-live.sh'), 'utf8')
+  const lines = src.split('\n')
+  let checked = 0
+  lines.forEach((line, index) => {
+    if (!line.includes('bad "')) return
+    checked += 1
+    const window = `${line}\n${lines[index + 1] ?? ''}`
+    if (!window.includes('set_exit_code')) {
+      fail(`verify-live.sh line ${index + 1} prints FAIL without setting an exit code: ${line.trim()}`)
+    }
+  })
+  if (checked === 0) fail('verify-live.sh: no FAIL branch found — the contract check inspected nothing')
+  else pass(`verify-live.sh: all ${checked} FAIL branch(es) set an exit code`)
+}
+
+await verifyLiveScript()
+
 process.stdout.write(`\nskills=${skills.length} commands=${commands.length} failures=${failures.length}\n`)
 if (failures.length > 0) {
   process.stderr.write(`\n${failures.length} structural failure(s)\n`)

@@ -323,6 +323,45 @@ const textOf = (steer) => steer?.content?.[0]?.text ?? ''
   check('case10: nothing steered', steers.length === 0, `got ${steers.length}`)
 }
 
+// --- Case 11: a config key cannot claim the reserved /flow name ---
+// /flow is registered by registerFlowCommand, and the host throws on a
+// duplicate command name (packages/interaction/commands/src/index.ts:93-95).
+// Before 0.2.1 a config key named `flow` registered the alias first and then
+// threw inside apply, losing the nine alias commands with it.
+
+{
+  const mod = await loadModule()
+  const registered = []
+  const ctx = {
+    commands: { register: (d) => { registered.push(d); return () => {} } },
+    skills: await buildCatalog(),
+  }
+  let threw = null
+  try {
+    mod.apply(ctx, { flow: 'some-skill' })
+  } catch (error) {
+    threw = error
+  }
+  check('case11: a config key named flow does not throw', threw === null, threw?.message ?? 'threw')
+  const flowRegistrations = registered.filter((r) => r.name === 'flow').length
+  check('case11: /flow is registered exactly once', flowRegistrations === 1, `${flowRegistrations} registrations`)
+  check('case11: all ten commands survive the reserved key', registered.length === 10, `got ${registered.length}`)
+
+  // A malformed key fails here, naming itself, instead of throwing somewhere
+  // inside the host registry with a less useful message.
+  let badError = null
+  try {
+    mod.apply(
+      { commands: { register: () => (() => {}) }, skills: await buildCatalog() },
+      { Spec: 'x' },
+    )
+  } catch (error) {
+    badError = error
+  }
+  check('case11: a malformed config key throws naming the key',
+    badError !== null && /Spec/.test(badError.message), badError?.message ?? 'did not throw')
+}
+
 console.log(`\nfailures=${failures.length}`)
 if (failures.length) { process.stderr.write(failures.join('\n') + '\n'); process.exit(1) }
 console.log('flow command gate PASS')

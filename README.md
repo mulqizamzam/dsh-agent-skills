@@ -539,7 +539,7 @@ npm test
 #   flow-command.test.mjs      /flow end to end: one steer, source metadata, failure paths
 
 # 2. Live check — after a restart, against the running host:
-bash tests/verify-live.sh           # exit 0 = all registered
+bash tests/verify-live.sh           # exit 0 = all registered; a failing gate exits non-zero
 node tests/verify-catalog-live.mjs  # every skill declared on disk, names match directories
 ```
 
@@ -622,12 +622,24 @@ Honest about the edges, so nobody is surprised later:
    exposes no hook for a plugin to drive a multi-turn stage machine, so v1 builds
    the best possible single instruction and lets the agent execute the stages.
    A later increment can revisit this only against a real host API, not a hoped-for one.
-5. **A composed workflow is a large message.** Measured locally through the
-   host's own `renderSkillContent`, the `feature` workflow with all seven stages
-   resolves to 94,748 characters. Nothing in the static suite measures how a
-   *live* host handles a message of that size, so if a host ever starts
+5. **A composed workflow is a large message.** Measured through the host's own
+   `renderSkillContent` over the shipped bodies: `feature` (7 stages) is 94,724
+   characters, `migration` (5) 74,113, `bugfix` (5) 64,715, `release` (4) 64,374,
+   `investigation` (4) 42,972. `tests/flow-compose.test.mjs` prints all five on
+   every run, so a skill that grows moves the figures in one place instead of
+   leaving a stale number in this file. Nothing in the static suite measures how
+   a *live* host handles a message of that size, so if a host ever starts
    truncating steering input, a long workflow is the first thing to check.
-6. **`/webperf` and `/ship` are guides, not specialists.** They load the
+6. **A stage body is whatever the host serves for that name.** `/flow` resolves
+   each stage through `ctx.skills.get`, so when another mounted plugin ships a
+   skill of the same name the host's copy wins. Measured on this machine:
+   `test-driven-development` resolves to
+   `dsh-custom/plugins/dsh-superpowers/skills/test-driven-development`, not to
+   this repo's copy, so editing that file here does not change what `/flow`
+   renders. Exactly one shipped skill has such a collision, because
+   `dsh-superpowers-plugin` is mounted alongside this one. The "Base directory
+   for this skill" line in a composed message shows which copy was served.
+7. **`/webperf` and `/ship` are guides, not specialists.** They load the
    `performance-optimization` and `shipping-and-launch` guides. The upstream project
    also shipped dedicated "persona" agents for those; this port delegates to the
    guides instead, so you get the checklist but not a separate specialist's

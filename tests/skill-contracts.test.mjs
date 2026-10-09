@@ -38,6 +38,21 @@ function rejects(label, registry, skills = SHIPPED) {
   }
 }
 
+/**
+ * Assert that a registry is rejected with the message the rule is supposed to
+ * produce. A case that only proves "something threw" can pass because of a
+ * second, accidental failure — which is how a regressed fix stays green.
+ */
+function rejectsWith(label, registry, pattern, skills = SHIPPED) {
+  try {
+    validateSkillContracts(registry, { skills, label })
+    fail(`${label}: accepted a registry it must reject`)
+  } catch (error) {
+    if (pattern.test(error.message)) pass(`${label}: rejected (${error.message.split(': ').at(-1)})`)
+    else fail(`${label}: rejected for the wrong reason — ${error.message}`)
+  }
+}
+
 function accepts(label, registry, skills = SHIPPED) {
   try {
     validateSkillContracts(registry, { skills, label })
@@ -96,6 +111,16 @@ rejects('not an object', [])
 rejects('unknown top-level key', { skills: {}, vocabularies: { artifacts: ['a'] }, extra: 1 })
 rejects('skills missing', { vocabularies: { artifacts: ['a'] } })
 rejects('vocabularies missing', { skills: {} })
+// Every vocabulary member is indexed unconditionally once validation starts, so
+// a missing one has to fail here with a message naming it. Left unchecked it
+// surfaced as a TypeError inside the plugin's boot try/catch.
+rejectsWith('vocabularies missing risk_levels', { skills: {}, vocabularies: { artifacts: ['a'], categories: ['b'] } }, /vocabularies\.risk_levels must be declared/)
+rejectsWith('vocabularies missing artifacts', { skills: {}, vocabularies: { categories: ['b'], risk_levels: ['c'] } }, /vocabularies\.artifacts must be declared/)
+rejectsWith('vocabularies missing categories', { skills: {}, vocabularies: { artifacts: ['a'], risk_levels: ['c'] } }, /vocabularies\.categories must be declared/)
+// A catalog entry named after an Object.prototype member must not read as
+// "contract found" through the prototype chain.
+rejectsWith('prototype name is not a contract', { skills: {}, vocabularies: CONTROL_VOCABULARIES }, /no contract for shipped skill/, ['constructor'])
+rejectsWith('prototype name is not a contract (toString)', { skills: {}, vocabularies: CONTROL_VOCABULARIES }, /no contract for shipped skill/, ['toString'])
 rejects('vocabularies unknown key', { skills: {}, vocabularies: { artifacts: ['a'], groups: ['b'] } })
 rejects('vocabularies empty list', { skills: {}, vocabularies: { artifacts: [] } })
 rejects('contract not an object', {

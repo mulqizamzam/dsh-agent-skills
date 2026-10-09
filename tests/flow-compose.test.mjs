@@ -10,10 +10,13 @@
 //
 // The composer is pure, so no host and no filesystem are involved here.
 
+import { readFile } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const require = createRequire(join(PLUGIN_ROOT, 'noop.js'))
 
 const { loadWorkflowDefinitions } = await import(join(PLUGIN_ROOT, 'lib', 'workflows.js'))
 const { listSkillNames } = await import(join(PLUGIN_ROOT, 'lib', 'skill-catalog.js'))
@@ -188,6 +191,73 @@ for (const request of ['Fix a regression', 'Investigate a failure', 'Perform a m
 function workflowOrder(text) {
   const block = text.slice(text.indexOf('Execution order:'), text.indexOf('Workflow rules:'))
   return [...block.matchAll(/^\d+\. ([a-z0-9-]+)/gm)].map((m) => m[1])
+}
+
+// --- Risk annotation wording ---
+// Only the high-risk sentence was pinned before 0.2.1: mutating the medium
+// wording left the gate green, so model-facing risk text could drift freely.
+
+{
+  const plan = buildPlan('implement OAuth login')
+  const stage = plan.workflow.stages.find((s) => s.skill === 'shipping-and-launch')
+  const contract = CONTRACTS['shipping-and-launch']
+  if (stage !== undefined && contract?.risk_level === 'high') {
+    pass('shipping-and-launch carries the high-risk annotation')
+  } else {
+    fail('shipping-and-launch is no longer a high-risk stage — update this gate')
+  }
+  const withContracts = composeWorkflowMessage(plan, { contracts: CONTRACTS })
+  const medium = Object.entries(CONTRACTS).find(([, c]) => c.risk_level === 'medium')
+  if (medium !== undefined) {
+    if (withContracts.includes('Risk level: medium — anything it raises blocks the next stage until resolved.')) {
+      pass(`medium-risk wording is pinned (${medium[0]})`)
+    } else {
+      fail('medium-risk wording changed')
+    }
+  } else {
+    fail('no medium-risk contract found — the vocabulary has drifted')
+  }
+}
+
+// --- Composed size, measured through the host's own renderer ---
+// README quotes this figure as the context cost of one /flow push, so it must
+// come from the code path production uses (host renderSkillContent over real
+// SKILL.md bodies), not from the stand-in renderer above. Pinning it here means
+// a skill that grows moves the number in one place instead of leaving a stale
+// figure in the docs. Measured 2026-10-09 after the 0.2.1 keyword fix.
+
+{
+  const { renderSkillContent } = require('@deepseek-ai/dsh-skill')
+  const SKILLS_DIR = join(PLUGIN_ROOT, 'assets', 'skills')
+  const cache = new Map()
+  const render = async (name) => {
+    if (!cache.has(name)) {
+      const text = await readFile(join(SKILLS_DIR, name, 'SKILL.md'), 'utf8')
+      const body = text.replace(/^---[\s\S]*?\n---\n?/, '')
+      cache.set(name, renderSkillContent({ name, provider: 'agent-skills', description: 'real', content: body }))
+    }
+    return cache.get(name)
+  }
+  const requests = {
+    feature: 'implement OAuth login',
+    bugfix: 'fix the checkout crash',
+    investigation: 'investigate why the job fails',
+    migration: 'migrate the billing schema',
+    release: 'prepare this feature for production',
+  }
+  for (const [key, request] of Object.entries(requests)) {
+    const definition = DEFINITIONS.get(key)
+    const selection = selectWorkflow(DEFINITIONS.values(), request)
+    if (selection.workflow.name !== key) {
+      fail(`size probe: "${request}" selected ${selection.workflow.name}, expected ${key}`)
+      continue
+    }
+    const stages = []
+    for (const stage of definition.stages) stages.push({ ...stage, rendered: await render(stage.skill) })
+    const message = composeWorkflowMessage({ request, workflow: definition, stages, skipped: [], selection }, { contracts: CONTRACTS })
+    console.log(`     ${key}: ${stages.length} stages, ${message.length} characters`)
+    if (message.length < 1000) fail(`${key} composed to only ${message.length} characters`)
+  }
 }
 
 process.stdout.write(`\nflow-compose failures=${failures}\n`)

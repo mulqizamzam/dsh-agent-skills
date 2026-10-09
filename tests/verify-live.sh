@@ -10,7 +10,9 @@
 #   11 — plugin symlink missing (install step 3 not run)
 #   12 — plugin module failed to load (step 2 symlinks broken)
 #   13 — profile package.json missing dependency/bundles entry (step 3 wrong profile)
-#   14 — catalog count mismatch / malformed SKILL.md
+#   14 — catalog count mismatch / malformed SKILL.md / derived count wrong
+#   15 — a static gate from the test suite failed (structural, skill-load,
+#        e2e handler, command routing, flow command)
 # Precedence rule: when multiple failures occur, the lowest exit code
 # (numerically smallest) is reported. I.e., exit code 10 takes precedence
 # over 11, 12, 13, 14.
@@ -71,6 +73,7 @@ SKILL_COUNT=$(derive_count countSkills)
 case "$SKILL_COUNT" in
   ''|*[!0-9]*)
     bad "lib/counts.js countSkills() tidak menghasilkan angka: '${SKILL_COUNT}'"
+    set_exit_code 14
     SKILL_COUNT='?' ;;
 esac
 
@@ -80,8 +83,19 @@ COMMAND_COUNT=$(derive_count countTotalCommands)
 case "$COMMAND_COUNT" in
   ''|*[!0-9]*)
     bad "lib/counts.js countTotalCommands() tidak menghasilkan angka: '${COMMAND_COUNT}'"
+    set_exit_code 14
     COMMAND_COUNT='?' ;;
 esac
+
+# A derived number that nobody asserts is decoration. command-routing.test.mjs
+# below never reads counts.js, so without this line a mutation that makes
+# countTotalCommands() return the wrong total just prints in a PASS status
+# line. The expectation is stated here on purpose: it is the same 9 aliases +
+# /flow that tests/e2e-handler.test.mjs asserts.
+if [ "$COMMAND_COUNT" != '10' ]; then
+  bad "lib/counts.js countTotalCommands() = '${COMMAND_COUNT}', expected 10 (9 skill aliases + /flow)"
+  set_exit_code 14
+fi
 
 # 1. HTTP probe web GUI
 # curl already writes 000 to stdout on transport failure, so a `|| echo 000`
@@ -116,8 +130,8 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
     ok "modul plugin loadable: name+apply+inject valid"
   else
     bad "modul plugin gagal load dari symlink profil:"
-    printf '%s\n' "$load_out" | sed 's/^/    /' >&2
     set_exit_code 12
+    printf '%s\n' "$load_out" | sed 's/^/    /' >&2
   fi
 else
   ok "modul loadability: skipped (no profile on this machine)"
@@ -149,8 +163,8 @@ if [ "$catalog_rc" -eq 0 ]; then
   ok "$SKILL_COUNT skill name valid, 0 mismatch name!==dir"
 else
   bad "verify-catalog-live gagal (exit $catalog_rc):"
-  printf '%s\n' "$catalog_out" | sed 's/^/    /' >&2
   set_exit_code 14
+  printf '%s\n' "$catalog_out" | sed 's/^/    /' >&2
 fi
 
 # 6. Gerbang statis lokal masih hijau.
@@ -159,16 +173,24 @@ fi
 # environment reasons. Skip these steps so `RESULT: PASS` does not punish a
 # clean checkout on a machine that never ran restart-dsh.sh.
 if [ "$PROFILE_PRESENT" -eq 1 ]; then
-  ( cd "$PLUGIN_DIR" && node tests/structural.test.mjs >/dev/null 2>&1 ) \
-    && ok "structural gate exit 0" || bad "structural gate gagal"
-  ( cd "$PLUGIN_DIR" && node tests/skill-load.test.mjs >/dev/null 2>&1 ) \
-    && ok "skill-load e2e gate exit 0 ($SKILL_COUNT/$SKILL_COUNT via host provider)" || bad "skill-load e2e gate gagal"
-  ( cd "$PLUGIN_DIR" && node tests/e2e-handler.test.mjs >/dev/null 2>&1 ) \
-    && ok "e2e handler gate exit 0" || bad "e2e handler gate gagal"
-  ( cd "$PLUGIN_DIR" && node tests/command-routing.test.mjs >/dev/null 2>&1 ) \
-    && ok "command routing gate exit 0 (${COMMAND_COUNT}/${COMMAND_COUNT})" || bad "command routing gate gagal"
-  ( cd "$PLUGIN_DIR" && node tests/flow-command.test.mjs >/dev/null 2>&1 ) \
-    && ok "flow command gate exit 0" || bad "flow command gate gagal"
+  # Every gate below has to be able to fail this script. The previous version
+  # printed FAIL and still exited 0, so a red gate read as "RESULT: PASS" to
+  # the operator running it after a restart. Measured: with a deliberately
+  # broken count the script printed FAIL and exited 0.
+  gate() {
+    local file=$1 label=$2
+    if ( cd "$PLUGIN_DIR" && node "tests/$file" >/dev/null 2>&1 ); then
+      ok "$label"
+    else
+      bad "$label"
+      set_exit_code 15
+    fi
+  }
+  gate structural.test.mjs "structural gate exit 0"
+  gate skill-load.test.mjs "skill-load e2e gate exit 0 ($SKILL_COUNT/$SKILL_COUNT via host provider)"
+  gate e2e-handler.test.mjs "e2e handler gate exit 0"
+  gate command-routing.test.mjs "command routing gate exit 0 (${COMMAND_COUNT}/${COMMAND_COUNT})"
+  gate flow-command.test.mjs "flow command gate exit 0"
 else
   ok "structural/e2e/routing: skipped (no profile; run 'npm test' directly)"
 fi
