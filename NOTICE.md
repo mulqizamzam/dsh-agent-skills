@@ -11,7 +11,11 @@ This plugin repackages skills from:
 Verified by byte comparison of shipped `assets/skills/*/SKILL.md` against a
 fresh shallow clone of upstream at HEAD 1401c8b:
 
-- 25 SKILL.md bodies, shipped verbatim (byte-identical after frontmatter)
+- 25 SKILL.md bodies, shipped verbatim except three — `documentation-and-adrs`,
+  `frontend-ui-engineering`, and `shipping-and-launch` carry small port-time
+  edits (a section swap, an error-retry block, and a lifecycle-method change
+  respectively; the git history has the details). The other 22 are
+  byte-identical after frontmatter
 - 7 shared reference files (those with two or more consumers in upstream)
 - 25 skill directory names, kept as stable compatibility identifiers
 - The 9 command-to-skill mappings

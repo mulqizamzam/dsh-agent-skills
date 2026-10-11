@@ -157,9 +157,9 @@ Three rules govern that arrow chain, and they are the whole design:
 | Workflow | Chosen when the request says… | Stages |
 |---|---|---|
 | `feature` | add / implement / build / create | *debugging (optional)* → spec → plan → build → test → review → ship (optional) |
-| `bugfix` | fix / broken / regression / crash | debugging → test → build → review |
+| `bugfix` | fix / broken / regression / crash | debugging → evidence (optional) → test → build → review |
 | `investigation` | investigate / why / failing / diagnose | context (optional) → evidence → diagnosis → findings |
-| `migration` | migrate / upgrade / deprecate | context (optional) → migration → test → review → ship (optional) |
+| `migration` | migrate / upgrade / deprecate | debugging (optional) → migration → test → review → ship (optional) |
 | `release` | release / deploy / production / ship | review → test → observability (optional) → ship |
 
 Selection is deterministic and explainable: each workflow declares its keywords,
@@ -353,7 +353,7 @@ Execution order:
 2. planning-and-task-breakdown (required) — …
 …
 
-STAGE 1 of 6: spec-driven-development
+STAGE 1 of 7: spec-driven-development
 Purpose: …
 
 <skill_content name="spec-driven-development">
@@ -519,7 +519,7 @@ shortcut. The shortcuts are the fast lane, not the only lane.
 Two levels, cheap to run:
 
 ```bash
-# 1. Static checks — no host needed. Fourteen gates in sequence:
+# 1. Static checks — no host needed. Fifteen gates in sequence:
 npm test
 #   structural.test.mjs        each SKILL.md parses cleanly, names are unique, refs resolve
 #   skill-load.test.mjs        each skill survives the real host FileSystemSkillProvider,
@@ -534,17 +534,28 @@ npm test
 #                              of the name-vs-directory rule
 #   frontmatter-integrity.test.mjs  byte-level frontmatter integrity (host YAML parser)
 #   workflow-definitions.test.mjs  valid load, malformed JSON, duplicate keys, duplicate
-#                              stages, missing fields, unknown skill reference
+#                              stages, missing fields, unknown skill reference; disk-level
+#                              rules (nested dir, *.JSON, symlink, near-miss name); the
+#                              duplicate-key lexer's escape path
 #   skill-contracts.test.mjs   every contract is discoverable, schema violations rejected
-#   flow-select.test.mjs       the routing table, the fallback, and the tie-breaks
-#   flow-compose.test.mjs      ordering, verbatim bodies, skipped stages, request preserved
-#   flow-command.test.mjs      /flow end to end: one steer, source metadata, failure paths
+#   flow-select.test.mjs       the routing table, the fallback, the tie-breaks, hyphenated
+#                              tokens, and a negative-routing table (an innocent request
+#                              must not be hijacked by a generic keyword)
+#   flow-compose.test.mjs      ordering, verbatim bodies, skipped stages, request preserved,
+#                              the model-facing selection-reason wording
+#   flow-command.test.mjs      /flow end to end: one steer, source metadata, failure paths,
+#                              config-key and config-VALUE validation, re-entrant apply,
+#                              derived counts vs registrations, engine guards, plan snapshots
 #   flow-live-e2e.test.mjs     all five workflows composed through the REAL host
 #                              FileSystemSkillProvider + real renderSkillContent:
 #                              exact stage sections, order, one steer, request verbatim
-#   new-skill-guidance.test.mjs  the skill:new scaffold names the one remaining manual
-#                              edit (the contract entry) instead of printing
-#                              "no manual edits required" over a red contract gate
+#   new-skill-guidance.test.mjs  the skill:new scaffold names the remaining manual
+#                              edits (the contract entry and the TODO description)
+#                              instead of printing "no manual edits required"
+#   flow-asset-isolation.test.mjs  a broken workflow asset through the real apply():
+#                              nine aliases + degraded /flow stay registered, /flow names
+#                              the file, nothing is steered
+#   gen-readme.mjs --check    the README's marked regions match the shipped catalog
 
 # 2. Live check — after a restart, against the running host:
 bash tests/verify-live.sh           # exit 0 = all registered; a failing gate exits non-zero
@@ -683,10 +694,6 @@ unless you port more from upstream; a skill written for this plugin goes under i
 If the skill should also be a workflow stage, that is a third edit — add it to a
 `stages` list in `assets/workflows/<workflow>.json`. Nothing else moves: the stage
 is resolved through the host's own catalog by name.
-
-`NOTICE.md` is not one of the six. It records how many bodies came from upstream
-(25), which stays constant unless you port more from upstream; a skill written
-for this plugin goes under its `## What this plugin added` section instead.
 
 Then verify:
 

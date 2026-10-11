@@ -126,6 +126,12 @@ function readSkills() {
       throw new Error(`gen-readme: ${entry.name}/SKILL.md frontmatter has no description`)
     }
     if (skills.has(fm.name)) throw new Error(`gen-readme: duplicate skill name "${fm.name}"`)
+    // A pipe in a description renders as an extra markdown-table column: the
+    // row silently gains fields while every gate stays green. Fail here, where
+    // the culprit file is still named.
+    if (fm.description.includes('|')) {
+      throw new Error(`gen-readme: ${entry.name}/SKILL.md description contains "|" which would break the README table`)
+    }
     // A description folded across lines would break the row into two; the host
     // loader keeps the newline, but markdown tables cannot.
     skills.set(fm.name, { dir: entry.name, description: fm.description.replace(/\s+/g, ' ').trim() })
@@ -165,6 +171,30 @@ function buildTable(skills) {
   return lines.join('\n')
 }
 
+/**
+ * How many BEGIN/END pairs a region has. A duplicated region used to be
+ * invisible: replaceRegion and regionOf both matched only the FIRST pair, so
+ * a stale second copy — appended by a bad merge or a hand edit — hid from
+ * `--check` forever while the first one kept regenerating.
+ */
+function countRegions(text, region) {
+  const pattern = new RegExp(`<!-- BEGIN:${region} -->[\\s\\S]*?<!-- END:${region} -->`, 'g')
+  return [...text.matchAll(pattern)].length
+}
+
+/** Exactly one pair per region, or the file is structurally untrustworthy. */
+function assertSingleRegions(text) {
+  for (const region of ['SKILL-COUNT', 'SKILL-TABLE']) {
+    const found = countRegions(text, region)
+    if (found === 0) {
+      throw new Error(`gen-readme: README.md has no <!-- BEGIN:${region} --> / <!-- END:${region} --> pair`)
+    }
+    if (found > 1) {
+      throw new Error(`gen-readme: README.md has ${found} ${region} regions (expected exactly 1); delete the duplicate markers`)
+    }
+  }
+}
+
 /** Replace one marked region. Function form so `$` in prose stays literal. */
 function replaceRegion(text, region, body) {
   const pattern = new RegExp(`<!-- BEGIN:${region} -->[\\s\\S]*?<!-- END:${region} -->`)
@@ -195,10 +225,16 @@ function findBareCount(text, count) {
   const withoutRegions = text
     .replace(/<!-- BEGIN:SKILL-COUNT -->[\s\S]*?<!-- END:SKILL-COUNT -->/g, '')
     .replace(/<!-- BEGIN:SKILL-TABLE -->[\s\S]*?<!-- END:SKILL-TABLE -->/g, '')
-  // Match the count as a standalone number OR as an ordinal ("the 27th skill").
-  // \b alone misses "27th" because "t" is a word character, so it would not
-  // stop at the boundary — that suffix needs explicit handling.
-  const pattern = new RegExp(`\\b${count}(?:\\s*(?:st|nd|rd|th)\\b|\\b)`)
+  // The count only counts when it is talking about skills: a bare numeral used
+  // to false-positive on "Released Oct 29, 2025 after the 29,000-line audit"
+  // and false-negative on "ships twenty-nine skills". The number must (a) not
+  // be part of a thousands-separated figure ("29,000" — lookahead blocks the
+  // comma), and (b) be followed by a unit noun, optionally with an ordinal
+  // suffix ("the 27th skill").
+  const pattern = new RegExp(
+    `\\b${count}(?!\\d|,)(?:\\s*(?:st|nd|rd|th)\\b\\s*|\\s+)(skill|skills|alias|aliases|guide|guides)\\b`,
+    'i',
+  )
   // Report the offending line's content, not its number: stripping the regions
   // above renumbers the file, so a line number computed here would be wrong.
   for (const line of withoutRegions.split('\n')) {
@@ -220,6 +256,10 @@ try {
   if (skills.size !== expectedCount) {
     throw new Error(`gen-readme: read ${skills.size} skills but countSkills() reports ${expectedCount}`)
   }
+
+  // Structural trust of the file itself, before any content comparison: a
+  // duplicated marker region must fail in both modes.
+  assertSingleRegions(current)
 
   // Checked before the staleness comparison so a hand-written count is reported
   // as itself, not buried under "count/table does not match".

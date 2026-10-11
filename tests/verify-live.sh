@@ -39,6 +39,15 @@ PROFILE_PKG="$DSH_HOME/profiles/web/package.json"
 PROFILE_NM="$DSH_HOME/profiles/web/node_modules"
 EXIT_CODE=0
 
+# A profile whose package.json exists but whose node_modules does not is a
+# half-finished install (step 3 did not complete), not "no profile on this
+# machine": keying PROFILE_PRESENT on node_modules alone made that state skip
+# steps 1-4 AND exit 0, so the install wiring (11/12/13) was never checked.
+if [ -f "$PROFILE_PKG" ] && [ ! -d "$PROFILE_NM" ]; then
+  bad "profile package.json ada tapi node_modules tidak — install step 3 (pnpm add link:) tidak selesai"
+  set_exit_code 11
+fi
+
 # Skip the host-state steps (1-4) when the profile is not present on this
 # machine, so the disk-contract checks (5-6) stay runnable on a fresh clone.
 # Without this, RESULT: PASS on CI would be a statement about a host that
@@ -188,13 +197,20 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
   # printed FAIL and still exited 0, so a red gate read as "RESULT: PASS" to
   # the operator running it after a restart. Measured: with a deliberately
   # broken count the script printed FAIL and exited 0.
+  # The gate's output is captured and echoed on failure: a bare "FAIL <label>"
+  # with exit 15 sends the operator re-running the gate by hand to learn why,
+  # while step 5 above already learned that lesson.
   gate() {
     local file=$1 label=$2
-    if ( cd "$PLUGIN_DIR" && node "tests/$file" >/dev/null 2>&1 ); then
+    local out rc
+    out=$( cd "$PLUGIN_DIR" && node "tests/$file" 2>&1 )
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
       ok "$label"
     else
-      bad "$label"
+      bad "$label (exit $rc)"
       set_exit_code 15
+      printf '%s\n' "$out" | tail -5 | sed 's/^/    /' >&2
     fi
   }
   gate structural.test.mjs "structural gate exit 0"
@@ -204,6 +220,7 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
   gate flow-command.test.mjs "flow command gate exit 0"
   gate flow-live-e2e.test.mjs "flow live e2e gate exit 0 (5 workflows via host provider)"
   gate new-skill-guidance.test.mjs "skill:new guidance gate exit 0"
+  gate flow-asset-isolation.test.mjs "flow asset isolation gate exit 0 (broken asset keeps 9 aliases + degraded /flow)"
 else
   ok "structural/e2e/routing: skipped (no profile; run 'npm test' directly)"
 fi

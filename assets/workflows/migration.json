@@ -7,12 +7,7 @@
       "migration",
       "migrating",
       "upgrade",
-      "move",
-      "port",
-      "convert",
-      "transition",
       "deprecate",
-      "remove",
       "modernize"
     ],
     "priority": 80

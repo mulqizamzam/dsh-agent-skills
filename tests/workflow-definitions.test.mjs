@@ -9,7 +9,7 @@
 // Exits non-zero on the first violated invariant (fail-closed: a warning on
 // stderr is invisible to CI that reads exit codes).
 
-import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises'
+import { mkdtemp, writeFile, rm, mkdir, symlink } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -216,26 +216,31 @@ accepts('control definition accepted', controlDefinition)
       pass(`duplicate key: rejected (${error.message})`)
     }
 
-    // 7c. Name that does not match the file name.
+    // 7c. Name that does not match the file name. The fixture carries `match`
+    //    on purpose: without it the match-required guard fires first and the
+    //    stem rule — the invariant this case names — is never reached (that is
+    //    exactly how this case used to pass for the wrong reason).
     await writeFile(join(tmp, 'broken.json'), JSON.stringify({
       name: 'some-other-name',
       description: 'x',
+      match: { keywords: ['q'], priority: 1 },
       stages: [{ skill: 'spec-driven-development', required: true }],
     }))
     try {
       loadWorkflowDefinitions({ workflowsDir: tmp })
       fail('name/stem mismatch: loader accepted it')
     } catch (error) {
-      pass(`name/stem mismatch: rejected (${error.message.split(': ').at(-1)})`)
+      pass(`name/stem mismatch: rejected (${error.message.includes('does not match the file name') ? 'stem rule' : error.message})`)
     }
 
     // 7d. The same workflow name cannot arrive twice: a definition's name must
     //     equal its file stem, so a second file claiming an existing name is
-    //     rejected on the stem rule.
+    //     rejected on the stem rule. `match` present for the same reason as 7c.
     await rm(join(tmp, 'broken.json'))
     const sameDefinition = {
       name: 'twin',
       description: 'x',
+      match: { keywords: ['twin'], priority: 1 },
       stages: [{ skill: 'spec-driven-development', required: true }],
     }
     await writeFile(join(tmp, 'twin.json'), JSON.stringify(sameDefinition))
@@ -305,6 +310,81 @@ accepts('control definition accepted', controlDefinition)
     }
   } finally {
     await rm(cased, { recursive: true, force: true })
+  }
+
+  // A symlinked definition used to be skipped silently: entry.isFile() is
+  // false for a symlink, so the workflow vanished from the loaded set (and
+  // the catalog/contract validators would then never see it).
+  const linked = await mkdtemp(join(PLUGIN_ROOT, '.wf-link-'))
+  try {
+    const real = join(linked, 'real.json')
+    await writeFile(real, JSON.stringify({ ...controlDefinition, name: 'real', match: { keywords: ['real'], priority: 1 } }))
+    await symlink(real, join(linked, 'feature.json'))
+    try {
+      loadWorkflowDefinitions({ workflowsDir: linked, skills: SHIPPED })
+      fail('symlinked definition: loader dropped it instead of failing')
+    } catch (error) {
+      pass(`symlinked definition: rejected (${error.message.split(': ').at(-1)})`)
+    }
+  } finally {
+    await rm(linked, { recursive: true, force: true })
+  }
+
+  // A near-miss file name ("notes.json.txt", "feature.json " with a trailing
+  // space) looks loadable in a directory listing but is not — skipping it
+  // quietly shrinks the workflow set.
+  const nearmiss = await mkdtemp(join(PLUGIN_ROOT, '.wf-near-'))
+  try {
+    await writeFile(join(nearmiss, 'feature.json'), JSON.stringify({ ...controlDefinition, name: 'feature' }))
+    await writeFile(join(nearmiss, 'notes.json.txt'), 'not a definition')
+    try {
+      loadWorkflowDefinitions({ workflowsDir: nearmiss, skills: SHIPPED })
+      fail('near-miss file name: loader ignored it instead of failing')
+    } catch (error) {
+      pass(`near-miss file name: rejected (${error.message.split(': ').at(-1)})`)
+    }
+  } finally {
+    await rm(nearmiss, { recursive: true, force: true })
+  }
+}
+
+// --- 10. The duplicate-key lexer's escape path ---
+// The decode step (JSON.parse of the raw string token) is what makes an
+// escaped key collide with its plain spelling: {"\u0061":1,"a":2} is JSON's
+// {"a":1,"a":2}. Without the decode the lexer compares the RAW text, sees two
+// different strings, and reports no duplicate — the exact silent collapse
+// this module exists to catch. No shipped JSON file contains a backslash, so
+// the branch is unreachable in-repo and these cases are its only coverage.
+
+{
+  const { parseJsonDocument } = await import(join(PLUGIN_ROOT, 'lib', 'json-file.js'))
+
+  const escapedVsPlain = '{"\\u0061":1,"a":2}'
+  try {
+    parseJsonDocument(escapedVsPlain, 'escape-probe')
+    fail('escaped key collision: lexer accepted {"\\u0061":1,"a":2} as distinct keys')
+  } catch (error) {
+    pass(`escaped key collision: rejected (${error.message.includes('duplicate key "a"') ? 'duplicate "a"' : error.message})`)
+  }
+
+  const escapedTwice = '{"a\\"b":1,"a\\"b":2}'
+  try {
+    parseJsonDocument(escapedTwice, 'escape-probe')
+    fail('escaped duplicate: lexer accepted the same escaped key twice')
+  } catch (error) {
+    pass(`escaped duplicate: rejected (${error.message.includes('duplicate key "a\\"b"') ? 'duplicate a\\"b' : error.message})`)
+  }
+
+  let value
+  try {
+    value = parseJsonDocument('{"\\u0061":1,"b":2}', 'escape-probe')
+  } catch {
+    value = undefined
+  }
+  if (value !== undefined && value.a === 1 && value.b === 2) {
+    pass('escaped key without a plain twin parses normally (no false positive)')
+  } else {
+    fail('escaped key without a twin was rejected — the lexer over-matches')
   }
 }
 

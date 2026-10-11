@@ -4,21 +4,33 @@
 // Exit 0 if every row passes, exit 1 otherwise.
 
 import { spawnSync } from "child_process";
-import { existsSync, lstatSync, readdirSync } from "fs";
-import { resolve } from "path";
+import { existsSync, lstatSync } from "fs";
+import { dirname, join, resolve } from "path";
+import { fileURLToPath } from "url";
 
 // ── Configuration ──────────────────────────────────────────────────
+const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HOST = "127.0.0.1";
 const PORT = 13080;
 const PROBE_TIMEOUT_MS = 10_000; // 10s max
 const URL = `http://${HOST}:${PORT}/`;
 
+// The four host packages README install step 2 links into this checkout.
+// Requiring ALL of them, not "at least one symlink resolves": an install
+// missing cordis used to PASS this row, and the plugin fails to load at boot.
+const REQUIRED_HOST_PACKAGES = ["cordis", "dsh-agent", "dsh-llm", "dsh-skill"];
+
 // ── Helper: HTTP probe with short timeout ──────────────────────────
 function checkDSHRunning() {
-  const { stdout, status } = spawnSync("bash", ["-c", `curl -s -o /dev/null -w "%{http_code}" ${URL}`], {
+  const { stdout, error } = spawnSync("bash", ["-c", `curl -s -o /dev/null -w "%{http_code}" ${URL}`], {
     timeout: PROBE_TIMEOUT_MS,
     stdio: ["pipe", "pipe", "ignore"],
   });
+  if (error !== undefined) {
+    // A missing curl is a missing tool, not a dead host; reporting 000 here
+    // sent the operator hunting a host problem that was never the problem.
+    return "FAIL (curl tidak tersedia)";
+  }
   const code = (stdout + "").trim();
   // This row answers "is the host serving?", not "is the GUI authorized?".
   // A DSH host with the web GUI's auth enabled answers 401 to an
@@ -61,38 +73,27 @@ function checkDSHHome() {
 }
 
 // ── Helper: harness source found via node_modules @deepseek-ai/ ────
+// Derived from this script's own location, not process.cwd(): running the
+// doctor from scripts/ used to report a correct install as broken.
 function checkHarnessSource() {
-  const deepseekAi = resolve(process.cwd(), "node_modules/@deepseek-ai");
-  if (!existsSync(deepseekAi)) return "FAIL";
+  const deepseekAi = join(PLUGIN_ROOT, "node_modules", "@deepseek-ai");
+  if (!existsSync(deepseekAi)) return "FAIL (node_modules/@deepseek-ai tidak ada)";
 
-  const entries = readdirSync(deepseekAi);
-  let foundAnySymlink = false;
-
-  for (const name of entries) {
-    const fullPath = resolve(deepseekAi, name);
+  for (const name of REQUIRED_HOST_PACKAGES) {
+    const fullPath = join(deepseekAi, name);
     try {
       const lstat = lstatSync(fullPath);
-      if (lstat.isSymbolicLink()) {
-        foundAnySymlink = true;
-        // Read the symlink target using the `readlink` command
-        const { stdout } = spawnSync("readlink", [fullPath], { stdio: "pipe" });
-        const target = (stdout + "").trim();
-        // Resolve target relative to the symlink's parent (workspace root)
-        // The @deepseek-ai dir is at <project>/node_modules/@deepseek-ai
-        // Its parent is <project>/node_modules, and the parent of that is <project>
-        const absTarget = target.startsWith("/")
-          ? target
-          : resolve(resolve(deepseekAi, ".."), target);
-        if (!existsSync(absTarget)) {
-          return "FAIL"; // symlink target does not exist
-        }
-      }
-    } catch {
-      // not readable, skip
+      if (!lstat.isSymbolicLink()) return `FAIL (${name} bukan symlink)`;
+      const { stdout } = spawnSync("readlink", [fullPath], { stdio: "pipe" });
+      const target = (stdout + "").trim();
+      // The shipped links are absolute; a relative target is resolved by the
+      // OS against the symlink's own directory (node_modules/@deepseek-ai/).
+      const absTarget = target.startsWith("/") ? target : resolve(deepseekAi, target);
+      if (!existsSync(absTarget)) return `FAIL (symlink ${name} menunjuk ke path yang tidak ada)`;
+    } catch (error) {
+      return `FAIL (${error?.code === 'ENOENT' ? 'tidak ada' : 'tidak bisa dibaca'}: ${name})`;
     }
   }
-
-  if (!foundAnySymlink) return "FAIL"; // no symlinks at all
 
   return "PASS";
 }

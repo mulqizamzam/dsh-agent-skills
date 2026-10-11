@@ -77,6 +77,36 @@ for (const request of ['make this better', 'do the thing', 'hmm', 'help']) {
   }
 }
 
+// --- Negative routing: an innocent request must not be hijacked by a
+// --- generic keyword. The 0.2.1 defect class ("go" / "live") was closed by
+// --- deleting two words with no rule behind the deletion; this table is the
+// --- generalizing guard. The words these requests contain were dropped from
+// --- the keyword lists for the same reason (measured misroutes: 14 of 17
+// --- innocent probes landed on the wrong workflow on a single keyword hit).
+// --- Any future keyword that re-routes one of them fails here.
+
+const NEGATIVE_ROUTING_TABLE = [
+  // request, workflow the request must NOT select
+  ['move the config file to src/', 'migration'],
+  ['port 8080 is already in use', 'migration'],
+  ['the CSS transition looks janky', 'migration'],
+  ['convert this array to a Set', 'migration'],
+  ['remove the unused import in utils.js', 'migration'],
+  ['does this library support node 20', 'feature'],
+  ['the new behaviour is wrong', 'feature'],
+  ['resolve the promise before returning', 'bugfix'],
+  ['the correct answer is 42', 'bugfix'],
+]
+
+for (const [request, forbidden] of NEGATIVE_ROUTING_TABLE) {
+  const selection = selectWorkflow(DEFINITIONS.values(), request)
+  if (selection.workflow.name !== forbidden) {
+    pass(`negative: "/flow ${request}" is not routed to ${forbidden} (chose ${selection.workflow.name})`)
+  } else {
+    fail(`negative: "/flow ${request}" was hijacked to ${forbidden} — a generic keyword is back in the routing table`)
+  }
+}
+
 // --- Determinism ---
 
 {
@@ -162,7 +192,7 @@ for (const request of ['make this better', 'do the thing', 'hmm', 'help']) {
 
   const definition = DEFINITIONS.get('feature')
   const matched = matchedKeywords(definition, tokenizeRequest('implement a brand new thing'))
-  if (matched.includes('implement') && matched.includes('new') && !matched.includes('add')) {
+  if (matched.includes('implement') && !matched.includes('add')) {
     pass(`matchedKeywords reports the hits and not the misses (${matched.join(', ')})`)
   } else {
     fail(`matchedKeywords wrong: ${matched.join(', ')}`)
@@ -180,6 +210,25 @@ for (const request of ['make this better', 'do the thing', 'hmm', 'help']) {
     pass('substring does not match ("addition" does not trigger "add")')
   } else {
     fail('substring matching is active — routing is no longer transparent')
+  }
+  // A hyphenated keyword is ONE token and never splits: dropping the
+  // "(?:-[a-z0-9]+)*" group from TOKEN leaves every other gate green, so the
+  // property is pinned here. No shipped keyword is hyphenated today; this
+  // keeps a future one from silently changing routing.
+  const hyphenTokens = tokenizeRequest('hot-fix now')
+  const hyphenDefinition = {
+    name: 'hyphen-probe',
+    description: 'x',
+    match: { keywords: ['hot-fix'], priority: 1 },
+    stages: [],
+    rules: [],
+    on_optional_missing: 'skip',
+  }
+  if (hyphenTokens.join(' ') === 'hot-fix now'
+    && scoreWorkflow(hyphenDefinition, tokenizeRequest('please hot-fix this')) === 1) {
+    pass('a hyphenated keyword is one token and matches as a whole')
+  } else {
+    fail(`hyphen tokenization broke: tokens=${hyphenTokens.join(' ')} score=${scoreWorkflow(hyphenDefinition, tokenizeRequest('please hot-fix this'))}`)
   }
 }
 

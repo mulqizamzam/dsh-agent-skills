@@ -4,7 +4,7 @@
 // directory already exists, writes a minimal SKILL.md frontmatter skeleton,
 // then runs the existing gen-readme.mjs to keep the README fresh.
 
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -49,6 +49,11 @@ const genResult = spawnSync('node', [join(PLUGIN_ROOT, 'scripts', 'gen-readme.mj
 })
 
 if (genResult.status !== 0) {
+  // The scaffold is atomic: a generator failure after the skill was written
+  // used to leave an orphaned skill directory behind with a stale README —
+  // a red `npm test` caused by a failed command, not by the operator.
+  rmSync(join(SKILLS_DIR, name), { recursive: true, force: true })
+  console.error(`ERROR: README regeneration failed; the scaffolded skill was removed. Fix the generator failure and re-run.`)
   process.exit(genResult.status || 1)
 }
 
@@ -58,5 +63,8 @@ if (genResult.status !== 0) {
 // risk come from closed vocabularies, so a generated placeholder would either
 // fail the vocabulary gate or ship as an empty contract nobody fills. Name the
 // file and the gate that fails without it — "no manual edits required" used to
-// be printed here while skill-contracts.test.mjs was already failing.
-console.log('remaining manual edit: assets/skill-contracts.json — add one contract entry for the new skill (skill-contracts.test.mjs fails until you do)')
+// be printed here while skill-contracts.test.mjs was already failing. The
+// scaffolded description is also a TODO: the structural gate's "Use when"
+// clause accepts "TODO: Use when necessary", so it must be replaced before the
+// skill is real.
+console.log('remaining manual edits: (1) assets/skill-contracts.json — one contract entry for the new skill (skill-contracts.test.mjs fails until you do); (2) the TODO description in the scaffolded SKILL.md')

@@ -362,6 +362,163 @@ const textOf = (steer) => steer?.content?.[0]?.text ?? ''
     badError !== null && /Spec/.test(badError.message), badError?.message ?? 'did not throw')
 }
 
+// --- Case 12: config VALUES are validated like keys ---
+// A non-string value used to reach registerCommand and throw a raw TypeError
+// ("skillName.replace is not a function") on the first entry, so 0 of 10
+// commands survived on the real host registry. A value that is merely not a
+// shipped skill is allowed — an alias may point at another plugin's skill,
+// and that fails at handler runtime with the plugin's own error result.
+
+{
+  const mod = await loadModule()
+  const registry = () => {
+    const registered = []
+    return {
+      registered,
+      ctx: {
+        commands: { register: (d) => { registered.push(d); return () => {} } },
+        skills: { get: async () => undefined },
+      },
+    }
+  }
+
+  for (const bad of [42, null, 'Spec Driven']) {
+    const { ctx, registered } = registry()
+    let error = null
+    try { mod.apply(ctx, { spec: bad }) } catch (e) { error = e }
+    check(`case12: config value ${JSON.stringify(bad)} throws naming the key`,
+      error !== null && /config key "spec"/.test(error.message), error?.message ?? 'did not throw')
+    check(`case12: nothing registered for value ${JSON.stringify(bad)}`, registered.length === 0, `got ${registered.length}`)
+  }
+
+  const { ctx, registered } = registry()
+  let threw = null
+  try { mod.apply(ctx, { spec: 'not-a-shipped-skill' }) } catch (e) { threw = e }
+  check('case12: a well-formed but unshipped skill value registers (runtime resolution)',
+    threw === null && registered.length === 10, `${threw?.message ?? registered.length}`)
+}
+
+// --- Case 13: apply() is re-entrant on the same ctx ---
+// The host registry throws on a duplicate command name, so a plain second
+// apply() died mid-registration with the first apply's commands still live.
+// register() returns a disposer; the second apply must tear the first
+// registration set down before registering again.
+
+{
+  const mod = await loadModule()
+  const registered = []
+  const disposed = []
+  const ctx = {
+    commands: { register: (d) => { registered.push(d); return () => { disposed.push(d.name) } } },
+    skills: { get: async () => undefined },
+  }
+  let threw = null
+  try {
+    mod.apply(ctx)
+    mod.apply(ctx)
+  } catch (error) { threw = error }
+  check('case13: a second apply on the same ctx does not throw', threw === null, threw?.message ?? 'threw')
+  check('case13: the first registration set was disposed', disposed.length === 10, `disposed ${disposed.length}`)
+  check('case13: exactly ten distinct commands are live after re-apply',
+    new Set(registered.map((r) => r.name)).size === 10 && registered.length === 20,
+    `registered ${registered.length}, distinct ${new Set(registered.map((r) => r.name)).size}`)
+}
+
+// --- Case 14: the derived count equals what apply() registers ---
+// countTotalCommands() had no consumer inside npm test: hardcoding it to 1
+// left every gate green, and only the operator script caught the drift.
+
+{
+  const { countTotalCommands } = await import(join(PLUGIN_ROOT, 'lib', 'counts.js'))
+  const mod = await loadModule()
+  const registered = []
+  const ctx = {
+    commands: { register: (d) => { registered.push(d); return () => {} } },
+    skills: await buildCatalog(),
+  }
+  mod.apply(ctx)
+  check('case14: countTotalCommands() equals the commands apply() registers',
+    countTotalCommands() === registered.length,
+    `counts says ${countTotalCommands()}, apply registered ${registered.length}`)
+  check('case14: countTotalCommands() is 10 (9 aliases + /flow)',
+    countTotalCommands() === 10, `countTotalCommands() = ${countTotalCommands()}`)
+}
+
+// --- Case 15: engine guards that no gate reached ---
+// (a) createFlowEngine must refuse a definition set without the fallback
+//     workflow; (b) a workflow whose stages are all optional and all missing
+//     must fail the run, not compose an execution order with zero stages.
+
+{
+  const { createFlowEngine } = await import(join(PLUGIN_ROOT, 'lib', 'flow.js'))
+  const { loadWorkflowDefinitions } = await import(join(PLUGIN_ROOT, 'lib', 'workflows.js'))
+  const { listSkillNames } = await import(join(PLUGIN_ROOT, 'lib', 'skill-catalog.js'))
+
+  let engineError = null
+  try {
+    createFlowEngine({
+      definitions: new Map([['x', { name: 'x', stages: [], rules: [], match: { keywords: ['x'], priority: 1 } }]]),
+      resolveSkill: async () => undefined,
+      renderSkill: () => '',
+      isModelInvocable: () => true,
+    })
+  } catch (error) { engineError = error }
+  check('case15: createFlowEngine rejects a set without the fallback workflow',
+    engineError !== null && /fallback/.test(engineError.message), engineError?.message ?? 'did not throw')
+
+  const definitions = loadWorkflowDefinitions({ root: PLUGIN_ROOT, skills: listSkillNames() })
+  const allOptional = {
+    name: 'all-optional',
+    description: 'x',
+    match: { keywords: ['zz-all-optional'], priority: 1 },
+    stages: [{ skill: 'spec-driven-development', required: false }],
+    rules: [],
+    on_optional_missing: 'skip',
+  }
+  const engine = createFlowEngine({
+    definitions: new Map([...definitions, ['all-optional', allOptional]]),
+    contracts: {},
+    resolveSkill: async () => undefined,
+    renderSkill: () => '',
+    isModelInvocable: () => true,
+  })
+  const outcome = await engine.run('zz-all-optional please')
+  check('case15: an all-optional workflow with no available skill fails the run',
+    outcome.ok === false && /resolved no available stages/.test(outcome.error ?? ''),
+    JSON.stringify(outcome).slice(0, 160))
+}
+
+// --- Case 16: the returned plan is a snapshot, not a window into the definitions ---
+// plan.workflow used to BE the definition object in the Map, and its
+// stages/rules arrays were that object's own — so a caller mutating the plan
+// corrupted every later run and every workflow sharing the Map.
+
+{
+  const { createFlowEngine } = await import(join(PLUGIN_ROOT, 'lib', 'flow.js'))
+  const { loadWorkflowDefinitions } = await import(join(PLUGIN_ROOT, 'lib', 'workflows.js'))
+  const { listSkillNames } = await import(join(PLUGIN_ROOT, 'lib', 'skill-catalog.js'))
+  const catalog = await buildCatalog()
+  const engine = createFlowEngine({
+    definitions: loadWorkflowDefinitions({ root: PLUGIN_ROOT, skills: listSkillNames() }),
+    contracts: {},
+    resolveSkill: (name) => catalog.get(name),
+    renderSkill: (skill) => `<c>${skill.name}</c>`,
+    isModelInvocable,
+  })
+  const first = await engine.run('implement OAuth login')
+  const featureRules = first.plan.workflow.rules.length
+  const featureStages = first.plan.stages.length
+  first.plan.workflow.rules.push('INJECTED')
+  first.plan.workflow.stages.length = 1
+  const second = await engine.run('implement OAuth login')
+  const other = await engine.run('investigate why it fails')
+  check('case16: mutating a returned plan does not corrupt the next run',
+    second.plan.workflow.rules.length === featureRules && second.plan.stages.length === featureStages,
+    `rules ${second.plan.workflow.rules.length}/${featureRules}, stages ${second.plan.stages.length}/${featureStages}`)
+  check('case16: a sibling workflow is unaffected by the mutation',
+    other.plan.stages.length === 4, `investigation stages ${other.plan.stages.length}, expected 4`)
+}
+
 console.log(`\nfailures=${failures.length}`)
 if (failures.length) { process.stderr.write(failures.join('\n') + '\n'); process.exit(1) }
 console.log('flow command gate PASS')

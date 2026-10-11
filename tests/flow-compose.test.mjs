@@ -61,6 +61,26 @@ for (const needle of ['WORKFLOW', 'Goal:', 'Selected workflow:', 'Execution orde
 if (message.includes('feature — Standard workflow')) pass('header names the selected workflow and its description')
 else fail('header does not name the selected workflow')
 
+// The selection-reason line is model-facing text: it is how the agent knows
+// WHY it got this workflow. It is pinned word-for-word because the 0.2.1
+// release pinned the risk-level wording for exactly this class of drift —
+// mutating this sentence used to survive every gate.
+if (message.includes('Workflow selection: matched on implement')) {
+  pass('selection reason names the matched keyword')
+} else {
+  fail('selection reason line is missing or drifted (expected "matched on implement")')
+}
+
+{
+  const fallbackPlan = buildPlan('make this better')
+  const fallbackMessage = composeWorkflowMessage(fallbackPlan, { contracts: CONTRACTS })
+  if (fallbackMessage.includes('Workflow selection: no workflow keyword matched this request, so the conservative default was chosen')) {
+    pass('selection reason explains the conservative fallback')
+  } else {
+    fail('fallback selection reason is missing or drifted')
+  }
+}
+
 // --- 2. Ordering ---
 
 {

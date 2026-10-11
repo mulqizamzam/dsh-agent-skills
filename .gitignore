@@ -1,7 +1,8 @@
 node_modules/
-*.bak*
+*.bak
 *.tmp
 *.hidden
+.DS_Store
 .dsh-install/
 npm-cache/
 pnpm-lock.yaml
