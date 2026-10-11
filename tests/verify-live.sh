@@ -97,15 +97,26 @@ if [ "$COMMAND_COUNT" != '10' ]; then
   set_exit_code 14
 fi
 
-# 1. HTTP probe web GUI
-# curl already writes 000 to stdout on transport failure, so a `|| echo 000`
-# fallback appends a SECOND 000 and yields "000000". Drop the fallback.
-code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:13080/)
-if [ "$code" = 200 ]; then
-  ok "web GUI HTTP $code"
+# 1. HTTP probe web GUI — a host-state check, so it joins steps 2-4 in being
+#    skipped when no profile exists on this machine. The README promises
+#    "steps 1–4 are skipped" on a fresh clone / CI; before this guard, step 1
+#    ran unconditionally and a CI box without a host exited 10 instead of 0.
+#    Reachability is the question, not authorization: a DSH host with the web
+#    GUI's auth enabled answers 401 to an unauthenticated curl, and that proves
+#    the host is serving. curl writes 000 only when the transport itself fails,
+#    so any 3-digit status means "up" — requiring 200 here misreported a secured
+#    install as host-down. (A `|| echo 000` fallback appends a SECOND 000 and
+#    yields "000000", so it stays dropped.)
+if [ "$PROFILE_PRESENT" -eq 1 ]; then
+  code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:13080/)
+  if [[ "$code" =~ ^[1-5][0-9][0-9]$ ]]; then
+    ok "web GUI HTTP $code (host reachable)"
+  else
+    bad "web GUI HTTP $code (000 = host tidak terjangkau)"
+    set_exit_code 10
+  fi
 else
-  bad "web GUI HTTP $code (harusnya 200)"
-  set_exit_code 10
+  ok "web GUI HTTP: skipped (no profile on this machine)"
 fi
 
 # 2. Symlink plugin ter-resolve
@@ -191,6 +202,8 @@ if [ "$PROFILE_PRESENT" -eq 1 ]; then
   gate e2e-handler.test.mjs "e2e handler gate exit 0"
   gate command-routing.test.mjs "command routing gate exit 0 (${COMMAND_COUNT}/${COMMAND_COUNT})"
   gate flow-command.test.mjs "flow command gate exit 0"
+  gate flow-live-e2e.test.mjs "flow live e2e gate exit 0 (5 workflows via host provider)"
+  gate new-skill-guidance.test.mjs "skill:new guidance gate exit 0"
 else
   ok "structural/e2e/routing: skipped (no profile; run 'npm test' directly)"
 fi

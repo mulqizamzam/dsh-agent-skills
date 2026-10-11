@@ -519,12 +519,14 @@ shortcut. The shortcuts are the fast lane, not the only lane.
 Two levels, cheap to run:
 
 ```bash
-# 1. Static checks — no host needed. Twelve gates in sequence:
+# 1. Static checks — no host needed. Fourteen gates in sequence:
 npm test
 #   structural.test.mjs        each SKILL.md parses cleanly, names are unique, refs resolve
 #   skill-load.test.mjs        each skill survives the real host FileSystemSkillProvider,
 #                              plus a mutation probe proving broken files get dropped
-#   e2e-handler.test.mjs       4 cases: happy path, missing skill, non-invocable, empty input
+#   e2e-handler.test.mjs       8 cases: happy path, missing skill, non-invocable, empty
+#                              input, catalog lookup throwing, steer throwing,
+#                              apply(ctx, null), /flow stage lookup throwing
 #   command-routing.test.mjs   each alias resolves to the right skill; /flow is registered;
 #                              the real host registry accepts every definition
 #   mutation-gate.test.mjs     7 fixtures, each classified host-loader or structural
@@ -537,6 +539,12 @@ npm test
 #   flow-select.test.mjs       the routing table, the fallback, and the tie-breaks
 #   flow-compose.test.mjs      ordering, verbatim bodies, skipped stages, request preserved
 #   flow-command.test.mjs      /flow end to end: one steer, source metadata, failure paths
+#   flow-live-e2e.test.mjs     all five workflows composed through the REAL host
+#                              FileSystemSkillProvider + real renderSkillContent:
+#                              exact stage sections, order, one steer, request verbatim
+#   new-skill-guidance.test.mjs  the skill:new scaffold names the one remaining manual
+#                              edit (the contract entry) instead of printing
+#                              "no manual edits required" over a red contract gate
 
 # 2. Live check — after a restart, against the running host:
 bash tests/verify-live.sh           # exit 0 = all registered; a failing gate exits non-zero
@@ -733,7 +741,7 @@ Read which step failed:
 
 | Symptom | Likely cause |
 |---------|-------------|
-| `web GUI HTTP` FAIL | DSH is not running. Start it and try again. |
+| `web GUI HTTP` FAIL | The host is unreachable at `127.0.0.1:13080` (curl code 000 — transport failure). An HTTP 401/403 answer counts as reachable: it means the GUI is up but requires auth, not that DSH is down. |
 | `symlink dsh-agent-skills` FAIL | Step 3 (`pnpm add link:`) was not run or used a wrong path. |
 | `modul plugin gagal load` FAIL | Step 2 symlinks are broken — run `ls -la node_modules/@deepseek-ai/` from the plugin dir and confirm all four point to real folders. |
 | `package.json` dependency/bundles FAIL | Step 3 did not write to the right profile. Confirm `$DSH_HOME/profiles/web/package.json` exists. |

@@ -62,7 +62,10 @@ must never become a runtime import. Definitions and contracts are therefore
 JSON: parsed by Node itself, no parser to drift, deterministic.
 
 Duplicate keys are the one thing JSON.parse hides, so `lib/json-file.js` detects
-them with a `JSON.parse` reviver keyed on the holder object (not a regex scan).
+them with a character-level lexer that tracks string state, container depth, and
+whether the next string is a key or a value (not a regex over the text, and not a
+`JSON.parse` reviver: the reviver walks the object JSON.parse has already built,
+where the collapsed key is gone).
 
 ## Data model
 
@@ -86,7 +89,7 @@ them with a `JSON.parse` reviver keyed on the holder object (not a regex scan).
 |---|---|---|
 | `name` | yes | kebab-case, equal to the file stem |
 | `description` | yes | non-empty |
-| `match` | no | `{ keywords: string[] (non-empty), priority: int }`; unknown keys rejected |
+| `match` | yes | `{ keywords: string[] (non-empty), priority: int }`; unknown keys rejected. Keywords drive selection — a definition without `match` can only ever run as the fallback, so it is required |
 | `stages` | yes | ≥1, each `{ skill, required, purpose? }`; unknown keys rejected; `skill` must be a shipped skill; no skill twice |
 | `rules` | no | non-empty strings |
 | `on_optional_missing` | no | `"skip"` (default) \| `"error"` |

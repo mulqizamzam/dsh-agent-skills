@@ -3,10 +3,15 @@
 // lib index.js functions: renderSkillContent, isUserInvocable,
 // createUserMessage).
 //
-// Three cases:
+// Cases:
 //   1. happy path   -> success + steering message with body + raw input
 //   2. skill absent -> error
 //   3. skill not user-invocable -> error
+//   4. no raw input -> skill body only, no "User request:" tail
+//   5. ctx.skills.get REJECTS -> error result, handler does not rethrow
+//   6. agent.steer THROWS -> error result, handler does not rethrow
+//   7. apply(ctx, null) -> "no config", not a TypeError at activation
+//   8. /flow stage lookup rejects -> error result, nothing steered
 
 import { readFile } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
@@ -128,6 +133,96 @@ const check = (label, cond, detail) => {
   check('case4: success', res.kind === 'success', `got ${res.kind}`)
   check('case4: no User request tail', !t.includes('User request:'), 'unexpected tail')
   check('case4: body still present', t.includes('<skill_content'), 'missing body')
+}
+
+// --- Case 5: catalog lookup REJECTS -> error result, nothing escapes ---
+// The orchestrator spec's failure contract: "No exception escapes a handler."
+// Before the fix this case surfaced as a rejected promise from handler().
+{
+  const registered = []
+  const fakeCtx = {
+    commands: { register: (d) => { registered.push(d); return () => {} } },
+    skills: { get: async () => { throw new Error('catalog exploded') } },
+  }
+  const mod = await import(join(PLUGIN_ROOT, 'lib', 'index.js'))
+  mod.apply(fakeCtx)
+  const steered = []
+  let res
+  let threw = null
+  try {
+    res = await registered.find(r => r.name === 'spec').handler({
+      agent: { steer: (m) => steered.push(m) }, rawInput: 'x',
+      signal: new AbortController().signal, commandId: 'c5', attachments: [],
+    })
+  } catch (error) { threw = error }
+  check('case5: handler does not reject when ctx.skills.get throws', threw === null, `threw ${threw?.message}`)
+  check('case5: kind === error', res?.kind === 'error', `got ${res?.kind}`)
+  check('case5: error names the command and the cause', /\/spec failed: catalog exploded/.test(res?.text ?? ''), `text=${res?.text}`)
+  check('case5: nothing steered', steered.length === 0, `got ${steered.length}`)
+}
+
+// --- Case 6: steer() REJECTS -> error result, nothing escapes ---
+{
+  const registered = []
+  const fakeCtx = {
+    commands: { register: (d) => { registered.push(d); return () => {} } },
+    skills: { get: async () => userSkillDef },
+  }
+  const mod = await import(join(PLUGIN_ROOT, 'lib', 'index.js'))
+  mod.apply(fakeCtx)
+  let res
+  let threw = null
+  try {
+    res = await registered.find(r => r.name === 'spec').handler({
+      agent: { steer: () => { throw new Error('steer refused') } }, rawInput: 'x',
+      signal: new AbortController().signal, commandId: 'c6', attachments: [],
+    })
+  } catch (error) { threw = error }
+  check('case6: handler does not reject when agent.steer throws', threw === null, `threw ${threw?.message}`)
+  check('case6: kind === error', res?.kind === 'error', `got ${res?.kind}`)
+  check('case6: error carries the cause', /steer refused/.test(res?.text ?? ''), `text=${res?.text}`)
+}
+
+// --- Case 7: apply(ctx, null) means "no config", not a crash ---
+// A profile patch carrying `config: null` used to raise a raw TypeError from
+// Object.keys(null), taking the nine aliases down at activation.
+{
+  const registered = []
+  const fakeCtx = {
+    commands: { register: (d) => { registered.push(d); return () => {} } },
+    skills: { get: async () => userSkillDef },
+  }
+  const mod = await import(join(PLUGIN_ROOT, 'lib', 'index.js'))
+  let threw = null
+  try { mod.apply(fakeCtx, null) } catch (error) { threw = error }
+  check('case7: apply(ctx, null) does not throw', threw === null, `threw ${threw?.message}`)
+  check('case7: 10 commands registered', registered.length === 10, `got ${registered.length}`)
+}
+
+// --- Case 8: /flow handler returns an error result when a stage lookup rejects ---
+{
+  const registered = []
+  const fakeCtx = {
+    commands: { register: (d) => { registered.push(d); return () => {} } },
+    skills: { get: async () => { throw new Error('workflow catalog down') } },
+  }
+  const mod = await import(join(PLUGIN_ROOT, 'lib', 'index.js'))
+  mod.apply(fakeCtx)
+  const flow = registered.find(r => r.name === 'flow')
+  const steered = []
+  let res
+  let threw = null
+  try {
+    res = await flow.handler({
+      agent: { steer: (m) => steered.push(m), session: { header: { cwd: PLUGIN_ROOT } } },
+      rawInput: 'fix the regression',
+      signal: new AbortController().signal, commandId: 'c8', attachments: [],
+    })
+  } catch (error) { threw = error }
+  check('case8: /flow handler does not reject on a stage lookup throw', threw === null, `threw ${threw?.message}`)
+  check('case8: kind === error', res?.kind === 'error', `got ${res?.kind}`)
+  check('case8: error carries the cause', /workflow catalog down/.test(res?.text ?? ''), `text=${res?.text}`)
+  check('case8: nothing steered', steered.length === 0, `got ${steered.length}`)
 }
 
 console.log(`\nfailures=${failures.length}`)

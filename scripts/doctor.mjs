@@ -20,7 +20,12 @@ function checkDSHRunning() {
     stdio: ["pipe", "pipe", "ignore"],
   });
   const code = (stdout + "").trim();
-  if (/^2\d{2}$/.test(code)) return "PASS";
+  // This row answers "is the host serving?", not "is the GUI authorized?".
+  // A DSH host with the web GUI's auth enabled answers 401 to an
+  // unauthenticated curl, which proves the server is up; only a transport
+  // failure (curl prints 000) means the host is down. Requiring 2xx here
+  // misreported a secured install as dead.
+  if (/^[1-5][0-9][0-9]$/.test(code)) return "PASS";
   return "FAIL";
 }
 

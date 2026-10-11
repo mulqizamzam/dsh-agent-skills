@@ -52,6 +52,11 @@ if (genResult.status !== 0) {
   process.exit(genResult.status || 1)
 }
 
-// 5. Print the list of files needing manual edit
-// After Tasks 1 and 2 that list must be ZERO
-console.log('no manual edits required')
+// 5. Print the list of files needing manual edit.
+// The scaffold cannot finish the job: README documents TWO edits for a new
+// skill, and the contract entry is the one left. Produces/consumes/categories/
+// risk come from closed vocabularies, so a generated placeholder would either
+// fail the vocabulary gate or ship as an empty contract nobody fills. Name the
+// file and the gate that fails without it — "no manual edits required" used to
+// be printed here while skill-contracts.test.mjs was already failing.
+console.log('remaining manual edit: assets/skill-contracts.json — add one contract entry for the new skill (skill-contracts.test.mjs fails until you do)')
